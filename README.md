@@ -1,4 +1,4 @@
-# zustand-server
+# isomorphic-stores
 
 > **⚠️ This is an untested sketch. Not ready for use.**
 
