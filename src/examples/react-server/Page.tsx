@@ -18,7 +18,7 @@ function getElements() {
     </RootElement>,
 
     // Blocks streaming until userStore.whenReady resolves.
-    <StoreRoot StoreProvider={UserStore.StoreProvider} instance={userStore}>
+    <StoreRoot instance={userStore}>
       <UserWidget />
     </StoreRoot>,
 

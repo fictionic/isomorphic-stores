@@ -9,13 +9,19 @@ A secondary goal: replace the pattern of bubbling all UI updates up through a ro
 
 ### Key files
 - `src/core/types.ts` — all public types (`IsoStoreDefinition`, `IsoStoreInstance`, `WaitFor`, `OnMessage`, etc.)
-- `src/core/define.ts` — `defineIsoStore`, internal logic, `STORE_INTERNALS`
+- `src/core/define.ts` — `defineIsoStore`, internal logic
 - `src/core/adapter.ts` — adapter author types (`Adapter`, `StoreInit`, `StoreFactory`)
-- `src/core/StoreProvider.tsx` — generic context Provider (handles instance register/teardown in useEffect)
-- `src/index.ts` — consumer entry point
-- `src/adapter.ts` — adapter author entry point
+- `src/core/StoreProvider.tsx` — internal context Provider (handles instance register/teardown in useEffect); not part of public API
+- `src/provider.tsx` — `IsoStoreProvider`, the public multi-store provider component
+- `src/index.ts` — types-only entry point (`isomorphic-stores`)
+- `src/adapter.ts` — adapter author entry point (`isomorphic-stores/adapter`)
 - `src/examples/adapters/` — reference adapter implementations (Zustand, Redux)
 - `src/examples/react-server/` — example stores and components
+
+### Package exports
+- `isomorphic-stores` → `src/index.ts` — types only
+- `isomorphic-stores/adapter` → `src/adapter.ts` — adapter author API
+- `isomorphic-stores/provider` → `src/provider.tsx` — `IsoStoreProvider`
 
 ### Architecture
 
@@ -42,9 +48,9 @@ defineZustandIsoStore<MyOpts, MyState, MyMessage>(
 // Server-side usage
 const store = MyStore.createStore({ userId: 1 });
 // <RootElement when={store.whenReady}>
-//   <MyStore.StoreProvider instance={store}>
+//   <IsoStoreProvider instances={[store]}>
 //     <Widget />
-//   </MyStore.StoreProvider>
+//   </IsoStoreProvider>
 // </RootElement>
 
 // In server-rendered components
@@ -65,17 +71,20 @@ MyStore.broadcast(message);
 - `Adapter<NativeStore>` is a single generic function `<State>(nativeStore) => AdaptedStore<State>`
 - `onMessage(handler)` — registers a message handler on the store instance, returns `void`; called as a statement in the inner factory before returning state
 - `broadcast(message)` — delivers a message to all currently-mounted instances of a store type (fire-and-forget). Is a no-op server-side.
-- Instance registration: `defineStore` maintains a `Map<symbol, StoreInstance>` of mounted instances. `StoreProvider` registers/unregisters in `useEffect`. `useCreateClientStore` does the same.
-- `STORE_INTERNALS` symbol key on `StoreInstance` holds `{ identifier, messageHandlers }` — intended to be private to the library
+- Instance registration: `defineStore` maintains a `Map<symbol, StoreInstance>` of mounted instances. `StoreProvider` (internal) registers/unregisters in `useEffect`. `useCreateClientStore` does the same.
+- `STORE_INSTANCE_INTERNALS` symbol key on `IsoStoreInstance` holds `{ definition, identifier, messageHandlers }` — private to the library
+- `STORE_DEFINITION_INTERNALS` symbol key on `IsoStoreDefinition` holds `{ StoreProvider }` — keeps `StoreProvider` off the public API; consumers use `IsoStoreProvider` from `isomorphic-stores/provider` instead
 
 ### Cross-root communication
 Stores are scoped to React context trees, so components in different roots can't access each other's stores. `broadcast` is a minimal escape hatch: send a message to all mounted instances of a store type from anywhere. It's fire-and-forget with no request/response semantics. How cross-root communication should work more generally in an instance-based architecture is an open design question.
 
 ### Open questions
 - Client-side re-fetching / "going pending again" — not yet designed
-- Export API: hooks on `StoreDefinition` object vs named exports from store modules
 - Whether to offer a flattened single-lambda API for ergonomics alongside the two-layer version
 - Cross-root communication beyond broadcast (request/response, store-to-store subscriptions)
+- Deferred async dependencies — a `waitFor`-like API that doesn't block the first render but is applied on second render, for data fetched server-side and transported to the client for hydration after mount
+- Zustand middleware compatibility (e.g. `useShallow`) — likely a trivial adapter-layer concern but unverified
+- `useCreateClientStore` should return a `StoreProvider` so descendants can read from the store via `useStore` rather than threading `useClientStore` through the tree
 
 ---
 

@@ -11,9 +11,11 @@ import {
 import type {Adapter, StoreFactory} from "./adapter";
 import {getStoreProvider} from "./StoreProvider";
 import {
-  STORE_INTERNALS,
+  STORE_DEFINITION_INTERNALS,
+  STORE_INSTANCE_INTERNALS,
   type AdaptedStore,
   type Broadcast,
+  type IsoStoreDefinition,
   type IsoStoreInstance,
   type MessageHandler,
   type OnMessage,
@@ -31,12 +33,16 @@ function makeWaitFor<State>(pending: Array<{name: keyof State, promise: Promise<
   };
 }
 
-export const defineIsoStore = <Opts, State, Message = never, NativeStore = never>(
+const definitions: Map<symbol, IsoStoreDefinition<any, any, any>> = new Map();
+
+export const defineIsoStore = <Opts, State, Message, NativeStore>(
   factory: StoreFactory<Opts, State, Message, NativeStore>,
   adapter: Adapter<NativeStore>,
-) => {
+): IsoStoreDefinition<Opts, State, Message> => {
+  const definitionId = Symbol();
+
   const instances: Map<symbol, IsoStoreInstance<State, Message>> = new Map();
-  const createStore = (opts: Opts) => {
+  const createStore = (opts: Opts): IsoStoreInstance<State, Message> => {
     type PendingValue = { name: keyof State, promise: Promise<unknown> };
     const pending: Array<PendingValue> = [];
     const waitFor = makeWaitFor<State>(pending);
@@ -53,7 +59,8 @@ export const defineIsoStore = <Opts, State, Message = never, NativeStore = never
     return {
       adaptedStore,
       whenReady,
-      [STORE_INTERNALS]: {
+      [STORE_INSTANCE_INTERNALS]: {
+        definition: definitions.get(definitionId)!,
         identifier: Symbol(),
         messageHandlers,
       },
@@ -70,11 +77,11 @@ export const defineIsoStore = <Opts, State, Message = never, NativeStore = never
   };
 
   const register = (instance: IsoStoreInstance<State, Message>) => {
-    instances.set(instance[STORE_INTERNALS].identifier, instance);
+    instances.set(instance[STORE_INSTANCE_INTERNALS].identifier, instance);
   };
 
   const teardown = (instance: IsoStoreInstance<State, Message>) => {
-    instances.delete(instance[STORE_INTERNALS].identifier);
+    instances.delete(instance[STORE_INSTANCE_INTERNALS].identifier);
   };
 
   const useCreateClientStore: UseCreateClientStore<Opts, State> = (opts) => {
@@ -121,19 +128,25 @@ export const defineIsoStore = <Opts, State, Message = never, NativeStore = never
 
   const broadcast: Broadcast<Message> = (message: Message) => {
     instances.entries().forEach(([_, instance]) => {
-      instance[STORE_INTERNALS].messageHandlers.forEach((handler) => {
+      instance[STORE_INSTANCE_INTERNALS].messageHandlers.forEach((handler) => {
         handler(message);
       });
     });
   };
 
-  return {
+  const definition = {
     createStore,
-    StoreProvider: getStoreProvider(context, register, teardown),
     useStore,
     useCreateClientStore,
     broadcast,
+    [STORE_DEFINITION_INTERNALS]: {
+      StoreProvider: getStoreProvider(context, register, teardown),
+    },
   };
+
+  definitions.set(definitionId, definition);
+
+  return definition;
 }
 
 

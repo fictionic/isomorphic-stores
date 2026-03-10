@@ -46,13 +46,15 @@ defineZustandIsoStore<MyOpts, MyState, MyMessage>(
 The SSR integration is left to the call site — `isomorphic-stores` has no dependency on react-server or any specific SSR framework:
 
 ```tsx
+import { IsoStoreProvider } from 'isomorphic-stores/provider';
+
 // in handleRoute / getElements (react-server)
 const store = MyStore.createStore({ userId: 1 });
 return (
   <RootElement when={store.whenReady}>
-    <MyStore.StoreProvider instance={store}>
+    <IsoStoreProvider instances={[store]}>
       <Widget />
-    </MyStore.StoreProvider>
+    </IsoStoreProvider>
   </RootElement>
 );
 
@@ -64,11 +66,26 @@ const { ready, useClientStore } = MyStore.useCreateClientStore({ userId: 1 });
 const name = useClientStore(s => s.name); // null until ready
 ```
 
+Multiple stores can be wired to the same root element by passing them all to `IsoStoreProvider` and combining their `whenReady` promises:
+
+```tsx
+const userStore = UserStore.createStore({ userId: 1 });
+const prefsStore = PrefsStore.createStore({ userId: 1 });
+return (
+  <RootElement when={Promise.all([userStore.whenReady, prefsStore.whenReady])}>
+    <IsoStoreProvider instances={[userStore, prefsStore]}>
+      <Widget />
+    </IsoStoreProvider>
+  </RootElement>
+);
+```
+
 ## Exports
 
-There are two entry points:
+There are three entry points:
 
 - **`isomorphic-stores`** — for store consumers. Exports the types you need to define and interact with stores: `IsoStoreDefinition`, `IsoStoreInstance`, `WaitFor`, `OnMessage`, `MessageHandler`, `Broadcast`.
+- **`isomorphic-stores/provider`** — exports `IsoStoreProvider`, the React component used to wire one or more store instances into a context tree.
 - **`isomorphic-stores/adapter`** — for adapter authors. Exports everything needed to wrap a new store framework: `defineIsoStore`, `Adapter`, `StoreInit`, `StoreFactory`, `AdaptedStore`, plus the shared types above.
 
 The bundled adapters (`defineZustandIsoStore`, `defineReduxIsoStore`) live in `src/examples/adapters/` and are reference implementations, not published as part of the package. Copy and adapt them for your own use.

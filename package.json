@@ -1,6 +1,11 @@
 {
   "name": "isomorphic-stores",
   "private": true,
+  "exports": {
+    ".": "./src/index.ts",
+    "./adapter": "./src/adapter.ts",
+    "./provider": "./src/provider.tsx"
+  },
   "peerDependencies": {
     "typescript": "^5",
     "react": "^19.2.4"
