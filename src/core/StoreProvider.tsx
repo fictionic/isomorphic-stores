@@ -1,10 +1,9 @@
-import {useEffect, type Context, type ReactNode} from "react";
-import {type IsoStoreInstance, type StoreProvider} from "./types";
+import {useMemo, type Context, type ReactNode} from "react";
+import {type IsoStoreInstance, type ProviderID, type StoreProvider} from "./types";
+import {useIsoStoreLifecycle} from "./lifecycle";
 
 export function getStoreProvider<NativeStore>(
   context: Context<IsoStoreInstance<NativeStore> | null>,
-  register: ((instance: IsoStoreInstance<NativeStore>) => void),
-  teardown: ((instance: IsoStoreInstance<NativeStore>) => void)
 ): StoreProvider<NativeStore> {
 
   const {Provider} = context;
@@ -17,12 +16,8 @@ export function getStoreProvider<NativeStore>(
     instance,
     children,
   }: Props) {
-    useEffect(() => {
-      register(instance);
-      return () => {
-        teardown(instance);
-      };
-    }, [instance]); // not sure why instance would ever change, but maybe
+    const identifier = useMemo<ProviderID>(() => Symbol() as ProviderID, []);
+    useIsoStoreLifecycle(identifier, instance);
     return (
       <Provider value={instance}>
         {children}

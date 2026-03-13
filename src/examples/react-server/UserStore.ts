@@ -1,4 +1,4 @@
-import {defineZustandIsoStore} from "../adapters/zustand";
+import {defineZustandIsoStore} from "./stores";
 
 interface UserOpts {
   userId: number;
@@ -17,7 +17,7 @@ type UserMessage = { type: 'clearNote' };
 // onMessage handles broadcast() calls from outside this store's context tree.
 // rename and clearNote demonstrate calling Zustand actions from components.
 export default defineZustandIsoStore<UserOpts, UserState, UserMessage>(
-  ({ userId }, waitFor, onMessage) => (
+  ({ userId }, { waitFor, onMessage }) => (
     (set) => {
       onMessage((msg) => {
         if (msg.type === 'clearNote') set({ note: '' });

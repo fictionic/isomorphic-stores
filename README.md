@@ -29,13 +29,14 @@ Store definitions use a two-layer factory pattern:
 
 ```ts
 defineZustandIsoStore<MyOpts, MyState, MyMessage>(
-  ({ userId }, waitFor, onMessage) => (          // outer: opts + waitFor + onMessage (library layer)
-    (set, get) => {                              // inner: Zustand StateCreator (framework layer)
-      onMessage((msg) => {                       // call as a statement — registers a message handler
+  ({ userId }, { waitFor, onMessage, clientOnly }) => (  // outer: opts + fns (library layer)
+    (set, get) => {                                      // inner: Zustand StateCreator (framework layer)
+      onMessage((msg) => {                               // call as a statement — registers a message handler
         if (msg.type === 'reset') set({ name: '' });
       });
       return {
-        ...waitFor('name', fetchName(userId), ''), // declares async dependency; state updates when resolved
+        ...waitFor('name', fetchName(userId), ''),       // blocks SSR render until resolved
+        ...clientOnly('recs', fetchRecs(userId), []),    // resolves after client mount; doesn't block render
         setName: (name) => set({ name }),
       };
     }
@@ -63,7 +64,7 @@ const name = MyStore.useStore(s => s.name);
 
 // in a client-only component
 const { ready, useClientStore } = MyStore.useCreateClientStore({ userId: 1 });
-const name = useClientStore(s => s.name); // null until ready
+const name = useClientStore(s => s.name); // undefined until ready
 ```
 
 Multiple stores can be wired to the same root element by passing them all to `IsoStoreProvider` and combining their `whenReady` promises:
@@ -84,9 +85,9 @@ return (
 
 There are three entry points:
 
-- **`isomorphic-stores`** — for store consumers. Exports the types you need to define and interact with stores: `IsoStoreDefinition`, `IsoStoreInstance`, `WaitFor`, `OnMessage`, `MessageHandler`, `Broadcast`.
+- **`isomorphic-stores`** — for store consumers. Exports the types you need to define and interact with stores: `IsoStoreDefinition`, `IsoStoreInstance`, `SetAsyncState`, `OnMessage`, `MessageHandler`, `Broadcast`.
 - **`isomorphic-stores/provider`** — exports `IsoStoreProvider`, the React component used to wire one or more store instances into a context tree.
-- **`isomorphic-stores/adapter`** — for adapter authors. Exports everything needed to wrap a new store framework: `defineIsoStore`, `Adapter`, `StoreInit`, `StoreFactory`, `AdaptedStore`, plus the shared types above.
+- **`isomorphic-stores/adapter`** — for adapter authors. Exports `defineIsoStore`, `Adapter`, and `IsoStoreInit`, plus the shared types above.
 
 The bundled adapters (`defineZustandIsoStore`, `defineReduxIsoStore`) live in `src/examples/adapters/` and are reference implementations, not published as part of the package. Copy and adapt them for your own use.
 

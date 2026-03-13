@@ -8,14 +8,14 @@ Originally conceived as a Zustand+react-server bridge, now being generalized to 
 A secondary goal: replace the pattern of bubbling all UI updates up through a root element (which triggers full-tree re-renders) with granular per-component subscriptions via selectors. This library is intended to power both server and client rendering — not just be an SSR adapter that hands off to a singleton store on the client.
 
 ### Key files
-- `src/core/types.ts` — all public types (`IsoStoreDefinition`, `IsoStoreInstance`, `WaitFor`, `OnMessage`, etc.)
+- `src/core/types.ts` — all public types (`IsoStoreDefinition`, `IsoStoreInstance`, `SetAsyncState`, `OnMessage`, etc.)
 - `src/core/define.ts` — `defineIsoStore`, internal logic
-- `src/core/adapter.ts` — adapter author types (`Adapter`, `StoreInit`, `StoreFactory`)
 - `src/core/StoreProvider.tsx` — internal context Provider (handles instance register/teardown in useEffect); not part of public API
 - `src/provider.tsx` — `IsoStoreProvider`, the public multi-store provider component
 - `src/index.ts` — types-only entry point (`isomorphic-stores`)
 - `src/adapter.ts` — adapter author entry point (`isomorphic-stores/adapter`)
 - `src/examples/adapters/` — reference adapter implementations (Zustand, Redux)
+- `src/examples/react-server/stores.ts` — application-layer wrappers (`defineZustandIsoStore`, `defineReduxIsoStore`) combining adapter + `defineIsoStore`
 - `src/examples/react-server/` — example stores and components
 
 ### Package exports
@@ -26,19 +26,27 @@ A secondary goal: replace the pattern of bubbling all UI updates up through a ro
 ### Architecture
 
 Two-layer factory pattern:
-- **Outer layer** (library): `(opts, waitFor, onMessage) => NativeStoreDefinition` — receives opts, waitFor, and onMessage, returns a native store definition
+- **Outer layer** (user-written `IsoStoreInit`): `(opts, { waitFor, onMessage, clientOnly }) => NativeStoreInit` — receives opts and a `fns` object, returns a native store initializer
 - **Inner layer** (framework): e.g. `(set, get) => State` for Zustand — the native store creator
+
+The `Adapter` bridges the two: `createNativeStore(nativeStoreInit)` turns the inner-layer result into an actual store instance. This separates the user's store logic from the framework-specific construction.
+
+Three levels of abstraction:
+1. **`defineIsoStore(isoInit, adapter, options?)`** — core library function; framework-agnostic
+2. **`getAdapter<State>()`** — adapter module (e.g. `adapters/zustand.ts`); encapsulates framework-specific types (`NativeStore`, `NativeStoreInit`, hook types). Must be called as `getAdapter<State>()` (not as an object literal) to ensure TypeScript infers `State` from the adapter rather than from `SetAsyncState<State>` in `IsoStoreInit`.
+3. **`defineZustandIsoStore(isoInit, options?)`** — application-layer wrapper in `stores.ts`; combines adapter + `defineIsoStore`. Both wrapper functions require `State extends object` to prevent primitive state types.
 
 ```ts
 // Zustand example
 defineZustandIsoStore<MyOpts, MyState, MyMessage>(
-  ({ userId }, waitFor, onMessage) => (  // outer: opts + waitFor + onMessage
-    (set, get) => {                      // inner: Zustand StateCreator (block body required for onMessage)
-      onMessage((msg) => {               // called as a statement — registers handler, returns void
+  ({ userId }, { waitFor, onMessage, clientOnly }) => (  // outer: opts + fns
+    (set, get) => {                                      // inner: Zustand StateCreator (block body required for onMessage)
+      onMessage((msg) => {                               // called as a statement — registers handler, returns void
         if (msg.type === 'reset') set({ name: '' });
       });
       return {
-        ...waitFor('name', fetchName(userId), ''),
+        ...waitFor('name', fetchName(userId), ''),       // blocks SSR render until resolved
+        ...clientOnly('recs', fetchRecs(userId), []),    // resolves after client mount; never blocks render
         setName: (name) => set({ name }),
       };
     }
@@ -58,23 +66,25 @@ const name = MyStore.useStore(s => s.name);
 
 // Client-only components
 const { ready, useClientStore } = MyStore.useCreateClientStore({ userId: 1 });
-const name = useClientStore(s => s.name); // null until ready
+const name = useClientStore(s => s.name); // undefined until ready
 
 // Cross-root communication
 MyStore.broadcast(message);
 ```
 
 ### Design decisions
-- `waitFor(key, promise, initialValue)` — returns `{ key: initialValue }` to spread into state, registers promise; `setState` is called after native store is created (avoids chicken-and-egg)
-- `whenReady: Promise<void>` resolves when all `waitFor` promises complete
+- `waitFor(key, promise, initialValue)` — returns `{ key: initialValue }` to spread into state, registers promise; `setState` is called after native store is created (avoids chicken-and-egg). If a promise rejects, the key keeps its `initialValue` and `onError` is called if provided; `whenReady` still resolves.
+- `clientOnly(key, promise, initialValue)` — same API as `waitFor` but doesn't contribute to `whenReady`; the promise is awaited after the component mounts (triggered via `onMount` in `STORE_INSTANCE_INTERNALS`, called from `useIsoStoreLifecycle`). Designed for late-arriving data (e.g. react-server "late arrivals") that shouldn't block the initial render. The promise may never resolve server-side; that's fine.
+- `whenReady: Promise<void>` always resolves (never rejects), even if `waitFor` promises fail
 - Core has no dependency on any SSR or store framework — integration is at the call site
-- `Adapter<State, NativeStore, NativeHook>` is an interface with three methods: `getSetState(nativeStore)`, `getHook(getNativeStore)`, and `getEmpty()`. Adapters are created inside the framework-specific `defineXxxIsoStore` function where `State` is in scope, so no explicit hook type annotation is needed — TypeScript infers `NativeHook` from `getHook`'s return type.
+- `Adapter<State, NativeStore, NativeStoreInit, NativeHook, NativeClientHook>` is an interface with five methods: `createNativeStore(nativeStoreInit)`, `getSetState(nativeStore)`, `getHook(getNativeStore)`, `getClientHook(getNativeStore, ready)`, and `getEmpty()`. Adapters explicitly declare `NativeHook` and `NativeClientHook` as type aliases (e.g. `ZustandHook<State>`) rather than using `typeof useNativeZustandStore`, since the actual hook signature (selector-only) differs from the underlying framework hook (api + selector).
 - `useStore` on `IsoStoreDefinition` is typed as `NativeHook` — fully transparent, delegates directly to the native framework hook. Consumers get the native hook's type (including selector inference) with no wrapper visible.
 - `onMessage(handler)` — registers a message handler on the store instance, returns `void`; called as a statement in the inner factory before returning state
 - `broadcast(message)` — delivers a message to all currently-mounted instances of a store type (fire-and-forget). Is a no-op server-side.
-- Instance registration: `defineStore` maintains a `Map<symbol, StoreInstance>` of mounted instances. `StoreProvider` (internal) registers/unregisters in `useEffect`. `useCreateClientStore` does the same.
-- `STORE_INSTANCE_INTERNALS` symbol key on `IsoStoreInstance` holds `{ definition, identifier, nativeStore, messageHandlers }` — private to the library. `nativeStore` is used by `useStore` to call `adapter.getHook` at render time.
-- `STORE_DEFINITION_INTERNALS` symbol key on `IsoStoreDefinition` holds `{ StoreProvider }` — keeps `StoreProvider` off the public API; consumers use `IsoStoreProvider` from `isomorphic-stores/provider` instead
+- `options?: { onError?: (error: unknown) => void }` — third argument to `defineIsoStore`; called with a wrapped error when a `waitFor` promise rejects. Intended to be wired to an application-level error reporter. Not a general-purpose logger interface.
+- Instance registration: `defineIsoStore` maintains `instancesByProvider: Map<ProviderID, IsoStoreInstance>` per definition. `StoreProvider` (internal) and `useCreateClientStore` each register/unregister independently under their own `ProviderID` (stable `useMemo` symbol). This supports sharing one instance across multiple provider trees — each provider manages its own entry, so the first to unmount doesn't evict the instance for others.
+- `STORE_INSTANCE_INTERNALS` symbol key on `IsoStoreInstance` holds `{ definition, identifier, nativeStore, messageHandlers, onMount }` — private to the library. `nativeStore` is used by `useStore` to call `adapter.getHook` at render time. `onMount` is a resolver called by `useIsoStoreLifecycle` on mount to trigger `clientOnly` promises.
+- `STORE_DEFINITION_INTERNALS` symbol key on `IsoStoreDefinition` holds `{ instancesByProvider, StoreProvider }` — keeps internals off the public API; consumers use `IsoStoreProvider` from `isomorphic-stores/provider` instead
 
 ### Cross-root communication
 Stores are scoped to React context trees, so components in different roots can't access each other's stores. `broadcast` is a minimal escape hatch: send a message to all mounted instances of a store type from anywhere. It's fire-and-forget with no request/response semantics. How cross-root communication should work more generally in an instance-based architecture is an open design question.
@@ -84,11 +94,9 @@ Stores are scoped to React context trees, so components in different roots can't
 
 ### Open questions
 - Client-side re-fetching / "going pending again" — not yet designed
-- Whether to offer a flattened single-lambda API for ergonomics alongside the two-layer version
-- Cross-root communication beyond broadcast (request/response, store-to-store subscriptions)
-- Deferred async dependencies — a `waitFor`-like API that doesn't block the first render but is applied on second render, for data fetched server-side and transported to the client for hydration after mount
-- Zustand middleware compatibility (e.g. `useShallow`) — likely a trivial adapter-layer concern but unverified
+- Cross-root communication: request/response pattern not yet designed; subscriptions addressed via shared instances
 - `useCreateClientStore` should return a `StoreProvider` so descendants can read from the store via `useStore` rather than threading `useClientStore` through the tree
+- stores that depend on other stores? like a childStore declaration next to waitFor
 
 ---
 

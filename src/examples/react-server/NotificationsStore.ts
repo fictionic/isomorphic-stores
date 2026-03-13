@@ -1,4 +1,4 @@
-import {defineZustandIsoStore} from "../adapters/zustand";
+import {defineZustandIsoStore} from "./stores";
 
 interface NotificationsState {
   count: number;

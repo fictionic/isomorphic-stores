@@ -1,4 +1,4 @@
-import {defineZustandIsoStore} from "../adapters/zustand";
+import {defineZustandIsoStore} from "./stores";
 
 interface PrefsOpts {
   userId: number;
@@ -11,7 +11,7 @@ interface PrefsState {
 
 // Server-rendered store: waitFor blocks SSR render until theme preference is fetched.
 export default defineZustandIsoStore<PrefsOpts, PrefsState>(
-  ({ userId }, waitFor) => (
+  ({ userId }, { waitFor }) => (
     (set) => ({
       ...waitFor('theme', fetchUserTheme(userId), 'light'),
       setTheme: (theme) => set({ theme }),

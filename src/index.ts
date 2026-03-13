@@ -1,7 +1,7 @@
 export type {
   IsoStoreDefinition,
   IsoStoreInstance,
-  WaitFor,
+  SetAsyncState,
   OnMessage,
   MessageHandler,
   Broadcast,
