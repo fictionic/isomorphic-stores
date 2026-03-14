@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { act, cleanup, fireEvent, render, screen, waitFor as waitForDom } from "@testing-library/react";
 import { IsoStoreProvider } from "../provider";
-import { defineZustandIsoStore } from "../examples/react-server/stores";
+import {defineZustandIsoStore} from "../examples/stores";
 
 afterEach(cleanup);
 
@@ -269,6 +269,41 @@ test("broadcast delivers message to all mounted instances", async () => {
   });
 
   expect(screen.getAllByText("Bob")).toHaveLength(2);
+});
+
+// ─── Duplicate async keys ─────────────────────────────────────────────────────
+
+test("waitFor: duplicate key throws", () => {
+  const Store = defineZustandIsoStore<{}, { name: string }>(
+    (_, { waitFor }) => () => ({
+      ...waitFor("name", Promise.resolve("a"), ""),
+      ...waitFor("name", Promise.resolve("b"), ""),
+    })
+  );
+
+  expect(() => Store.createStore({})).toThrow("duplicate async key 'name'");
+});
+
+test("clientOnly: duplicate key throws", () => {
+  const Store = defineZustandIsoStore<{}, { data: string }>(
+    (_, { clientOnly }) => () => ({
+      ...clientOnly("data", Promise.resolve("a"), ""),
+      ...clientOnly("data", Promise.resolve("b"), ""),
+    })
+  );
+
+  expect(() => Store.createStore({})).toThrow("duplicate async key 'data'");
+});
+
+test("waitFor and clientOnly: same key throws", () => {
+  const Store = defineZustandIsoStore<{}, { name: string }>(
+    (_, { waitFor, clientOnly }) => () => ({
+      ...waitFor("name", Promise.resolve("a"), ""),
+      ...clientOnly("name", Promise.resolve("b"), ""),
+    })
+  );
+
+  expect(() => Store.createStore({})).toThrow("duplicate async key 'name'");
 });
 
 // ─── Multiple stores in one provider ─────────────────────────────────────────

@@ -6,8 +6,14 @@ import {
 import { useStore as useNativeZustandStore } from "zustand/react";
 import { type Adapter } from "../../adapter";
 
-type ZustandHook<State> = <U>(selector: (s: State) => U) => U;
-type ZustandClientHook<State> = <U>(selector: (s: State) => U) => U | undefined;
+type ZustandHook<State> = {
+  (): State;
+  <U>(selector: (s: State) => U): U;
+};
+type ZustandClientHook<State> = {
+  (): State | undefined;
+  <U>(selector: (s: State) => U): U | undefined;
+};
 
 const emptyZStore = createNativeZustandStore<Record<string, never>>(() => ({}));
 
@@ -21,21 +27,46 @@ export const getAdapter: <State extends object>() => Adapter<
   ZustandClientHook<State>
 > = <State>() => {
 
-  const getHook = (getNativeStore: () => NativeZustandStore<State>) => <U>(selector: (s: State) => U): U => useNativeZustandStore(getNativeStore(), selector);
+  function callHook(store: NativeZustandStore<State>): State;
+  function callHook<U>(store: NativeZustandStore<State>, selector: (s: State) => U): U;
+  function callHook<U>(store: NativeZustandStore<State>, selector?: (s: State) => U): State | U {
+    return selector ? useNativeZustandStore(store, selector) : useNativeZustandStore(store);
+  }
+
+  const getHook = (getNativeStore: () => NativeZustandStore<State>): ZustandHook<State> => {
+    function hook(): State;
+    function hook<U>(selector: (s: State) => U): U;
+    function hook(selector?: any) {
+      const store = getNativeStore();
+      return selector ? callHook(store, selector) : callHook(store);
+    }
+    return hook;
+  };
 
   return {
-    createNativeStore: (zInit) => createNativeZustandStore(zInit),
+    createNativeStore: (zInit) => {
+      const store = createNativeZustandStore(zInit);
+      // getInitialState is what's used in the server render.
+      // we need it to return the resolved async values from waitFor,
+      // since that's what the client will render with.
+      // consumers don't need access to the initial state from the constructor.
+      store.getInitialState = store.getState;
+      return store;
+    },
     getSetState: (nativeStore: NativeZustandStore<State>) => (
       (state: Partial<State>) => nativeStore.setState(state)
     ),
     getHook: getHook,
-    getClientHook: (getNativeStore: () => NativeZustandStore<State>, ready: boolean) => (
-      <U>(selector: (s: State) => U): U | undefined => {
-        const hook = getHook(getNativeStore);
-        const value = hook(selector);
+    getClientHook: (getNativeStore: () => NativeZustandStore<State>, ready: boolean): ZustandClientHook<State> => {
+      function hook(): State | undefined;
+      function hook<U>(selector: (s: State) => U): U | undefined;
+      function hook(selector?: any) {
+        const store = getNativeStore();
+        const value = selector ? callHook(store, selector) : callHook(store);
         return ready ? value : undefined;
       }
-    ),
-    getEmpty: () => emptyZStore as unknown as NativeZustandStore<State>,
+      return hook;
+    },
+    empty: emptyZStore as NativeZustandStore<State>,
   };
 };

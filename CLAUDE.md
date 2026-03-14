@@ -89,8 +89,28 @@ MyStore.broadcast(message);
 ### Cross-root communication
 Stores are scoped to React context trees, so components in different roots can't access each other's stores. `broadcast` is a minimal escape hatch: send a message to all mounted instances of a store type from anywhere. It's fire-and-forget with no request/response semantics. How cross-root communication should work more generally in an instance-based architecture is an open design question.
 
+### Demo site (`src/demo/`)
+
+A self-contained demo server that exercises the library against a minimal fake-react-server implementation. Run with `bun src/demo/server.tsx`.
+
+**`server.tsx`** — `Bun.serve` handler. At startup, builds the client bundle via `buildClientBundle`. On each request, creates a per-request fetch cache in an `AsyncLocalStorage` slot, instantiates `DemoPage`, and streams the response from `renderPage`.
+
+**`DemoPage.tsx`** — implements the `Page` interface (`createStores()` + `getElements()`). Creates store instances and returns an array of `<RootElement when={...}>` elements interleaved with a `<TheFold />` marker.
+
+**`fake-react-server/`** — minimal SSR streaming pipeline modelling react-server's behaviour:
+- `renderPage.tsx` — streams HTML as roots become ready. Writes the shell immediately, then for each element awaits `element.props.when` before calling `renderToString`. Flushes roots in order as their slots resolve. When `TheFold` resolves, injects the dehydrated fetch cache and client bundle `<script>` tags and calls `nodeArrival(0, lastRootBeforeFold)` to hydrate already-arrived roots. Roots arriving after the fold get an inline `nodeArrival` call as they stream in.
+- `RootElement.tsx` — pass-through component; `when` is read directly from props by `renderPage`, not by the component itself.
+- `TheFold.tsx` — null-rendering sentinel component; `isTheFold()` identifies it by component type.
+- `fetchAgent.ts` — isomorphic fetch wrapper. Server-side: caches responses in the ALS-backed `Map` and dehydrates it to `window.__FETCH_CACHE__`. Client-side: rehydrates from `window.__FETCH_CACHE__` so stores resolve instantly from cache instead of re-fetching.
+- `bootstrap.tsx` — client entry point. Rehydrates the fetch cache, creates a fresh `Page` instance (stores resolve from cache), awaits all `when` promises, then calls `initClientController` with the hydrated roots.
+- `ClientController.ts` — calls `hydrateRoot` for each root as `nodeArrival` events arrive (either replaying buffered arrivals or handling live ones after bootstrap completes).
+- `buildClientBundle.ts` — writes a temporary entry file that imports `PageClass` and calls `bootstrap(PageClass)`, then uses `Bun.build` to bundle it for the browser.
+
+**SSR correctness note:** Zustand's `useStore` uses `useSyncExternalStore` with `getInitialState()` as the server snapshot, which returns state at construction time — before `waitFor` resolves. The Zustand adapter overrides `store.getInitialState = store.getState` so `renderToString` (called after `whenReady`) sees the resolved async values.
+
 ### TODOs
 - Add a mechanism for adapters to integrate the isomorphic-stores `StoreProvider` with a framework-native provider — e.g. so the Redux adapter can render a react-redux `<Provider store={store}>` alongside the isomorphic-stores context, enabling `useDispatch`, devtools, and the rest of the react-redux ecosystem within the same subtree
+- Add a demo of `nativeStore` access in `DemoPage`: a component that takes the instance as a prop (not via context, no `IsoStoreProvider` needed) and reads state imperatively via `instance.nativeStore.getState()` on button click — contrasting with the surrounding `useStore`-via-context components
 
 ### Open questions
 - Client-side re-fetching / "going pending again" — not yet designed

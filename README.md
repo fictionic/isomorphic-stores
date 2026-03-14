@@ -23,7 +23,7 @@ The catch is that react-server requires stores to be **multiply-instantiable** �
 
 ## Design
 
-The core is framework-agnostic — it defines the `waitFor`/`whenReady` protocol and the adapter interface. The Zustand adapter is provided as a reference implementation. Any store-based framework with `getState`/`setState`/`subscribe` semantics could have an adapter written for it.
+The core is framework-agnostic — it defines the `waitFor`/`whenReady` protocol and the adapter interface. The Zustand adapter is provided as a reference implementation.
 
 Store definitions use a two-layer factory pattern:
 
@@ -80,6 +80,23 @@ return (
   </RootElement>
 );
 ```
+
+## Adapter compatibility
+
+The library's core abstraction is the **store as a discrete bundle of state** — an entity you create, scope to a subtree, and block SSR rendering on. This maps naturally onto frameworks that share the same primitive:
+
+| Framework | Fit | Notes |
+|-----------|-----|-------|
+| [Zustand](https://github.com/pmndrs/zustand) | ✅ | Reference implementation included |
+| [Redux](https://redux.js.org/) | ✅ | Reference implementation included |
+| [Valtio](https://github.com/pmndrs/valtio) | ✅ | Proxy-based mutable state; `getSetState` would be direct property assignment |
+| [MobX](https://mobx.js.org/) | ✅ | Observable class instances as stores; more complex adapter |
+| [Nanostores](https://github.com/nanostores/nanostores) | ✅ | Tiny, framework-agnostic; popular in SSR contexts (Astro) |
+| [Effector](https://effector.dev/) | ✅ | Explicit `createStore`/`createEvent` primitives; event-driven model |
+| [Jotai](https://jotai.org/) | ❌ | Philosophical mismatch (see below) |
+| [Recoil](https://recoiljs.org/) | ❌ | Philosophical mismatch (see below) |
+
+**Why atom-based frameworks don't fit:** Jotai and Recoil invert the model — atoms are the user-facing primitives, and the store is invisible infrastructure. `isomorphic-stores` is built around the store-as-entity concept: you create instances, scope them to subtrees, and communicate between them. Introducing that concept into Jotai would require users to think in a way that's contrary to why they chose Jotai in the first place. It would use Jotai's API surface but not feel like Jotai.
 
 ## Exports
 

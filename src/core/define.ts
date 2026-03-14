@@ -26,9 +26,16 @@ import {
 } from "./types";
 import {useIsoStoreLifecycle} from "./lifecycle";
 
-function makeWaitFor<State>(pending: Array<{name: keyof State, promise: Promise<unknown>}>): SetAsyncState<State> {
+function makeAsyncStateSetter<State>(
+  pending: Array<{name: keyof State, promise: Promise<unknown>}>,
+  keys: Set<keyof State>,
+): SetAsyncState<State> {
   // defined via function because otherwise I'd have to write the types on the next line twice
   return <K extends keyof State, V extends State[K]>(name: K, promise: Promise<V>, initialValue: V) => {
+    if (keys.has(name)) {
+      throw new Error(`isomorphic-stores: encountered duplicate async key '${String(name)}'; aborting`);
+    }
+    keys.add(name);
     pending.push({ name, promise });
     return { [name]: initialValue } as { [key in K]: V };
   };
@@ -51,16 +58,17 @@ export const defineIsoStore = <Opts, State extends Object, Message, NativeStore,
 
   const createStore = (opts: Opts): IsoStoreInstance<NativeStore> => {
     type PendingValue = { name: keyof State, promise: Promise<unknown> };
+    const asyncKeys: Set<keyof State> = new Set();
     const pending: Array<PendingValue> = [];
-    const waitFor = makeWaitFor<State>(pending);
+    const waitFor = makeAsyncStateSetter<State>(pending, asyncKeys);
+
+    const clientPending: Array<PendingValue> = [];
+    const clientOnly = makeAsyncStateSetter<State>(clientPending, asyncKeys);
 
     const messageHandlers: Array<MessageHandler<Message>> = [];
     const onMessage: OnMessage<Message> = (handler) => {
       messageHandlers.push(handler);
     };
-
-    const clientPending: Array<PendingValue> = [];
-    const clientOnly = makeWaitFor<State>(clientPending);
 
     const nativeStoreInit = isoInit(opts, { waitFor, onMessage, clientOnly });
     const nativeStore = adapter.createNativeStore(nativeStoreInit);
@@ -83,8 +91,8 @@ export const defineIsoStore = <Opts, State extends Object, Message, NativeStore,
 
     return {
       whenReady,
+      nativeStore,
       [STORE_INSTANCE_INTERNALS]: {
-        nativeStore,
         identifier: Symbol() as InstanceID,
         definition: definitions.get(definitionId)!,
         messageHandlers,
@@ -101,7 +109,7 @@ export const defineIsoStore = <Opts, State extends Object, Message, NativeStore,
     if (!instance) {
       throw new Error("isomorphic-stores: cannot call useStore outside a provider");
     }
-    return instance[STORE_INSTANCE_INTERNALS].nativeStore;
+    return instance.nativeStore;
   });
 
   const useCreateClientStore: UseCreateClientStore<Opts, NativeClientHook> = (opts) => {
@@ -127,7 +135,7 @@ export const defineIsoStore = <Opts, State extends Object, Message, NativeStore,
 
     const useClientStore = useCallback((...args: any) => {
       const getNativeStore = () => (
-        readyRef.current ? instanceRef.current![STORE_INSTANCE_INTERNALS].nativeStore : adapter.getEmpty()
+        readyRef.current ? instanceRef.current!.nativeStore : adapter.empty
       );
       const hook = adapter.getClientHook(getNativeStore, readyRef.current);
       return hook(...args);
@@ -141,12 +149,12 @@ export const defineIsoStore = <Opts, State extends Object, Message, NativeStore,
 
   const broadcast: Broadcast<Message> = (message: Message) => {
     const seen = new Set<InstanceID>();
-    instancesByProvider.values().forEach((instance) => {
+    for (const instance of instancesByProvider.values()) {
       const instanceId = instance[STORE_INSTANCE_INTERNALS].identifier;
       if (seen.has(instanceId)) return;
       seen.add(instanceId);
       instance[STORE_INSTANCE_INTERNALS].messageHandlers.forEach(h => h(message));
-    });
+    }
   };
 
   const definition = {

@@ -1,6 +1,6 @@
-import {defineIsoStore, type IsoStoreInit} from "../../core";
-import {getAdapter as getReduxAdapter, type ReduxStoreInit} from "../adapters/redux";
-import {getAdapter as getZustandAdapter, type NativeZustandStoreInit} from "../adapters/zustand";
+import {defineIsoStore, type IsoStoreInit} from "../core";
+import {getAdapter as getReduxAdapter, type ReduxStoreInit} from "./adapters/redux";
+import {getAdapter as getZustandAdapter, type NativeZustandStoreInit} from "./adapters/zustand";
 
 export const defineZustandIsoStore = <Opts, State extends object, Message = never>(
   isoInit: IsoStoreInit<Opts, State, Message, NativeZustandStoreInit<State>>,

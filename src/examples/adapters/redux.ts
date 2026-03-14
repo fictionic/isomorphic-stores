@@ -44,6 +44,6 @@ export const getAdapter = <State extends object>(): Adapter<State, ReduxStore<St
       const value = getHook(getNativeStore)(selector);
       return ready ? value : undefined;
     },
-    getEmpty: () => emptyReduxStore as unknown as ReduxStore<State>,
+    empty: emptyReduxStore as unknown as ReduxStore<State>,
   };
 };
