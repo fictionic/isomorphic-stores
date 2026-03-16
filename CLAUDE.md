@@ -1,52 +1,87 @@
 
 ## Project Overview
 
-A framework-agnostic SSR state management library with an adapter system. The core idea: stores are created server-side before render (e.g. in `handleRoute`), async data is declared via `waitFor`, and the SSR framework (e.g. react-server's `RootElement`) blocks rendering until the store is ready. Client-side components can also create stores independently via `useCreateClientStore`.
+**Sluice** is a Bun-powered streaming SSR framework, and **isomorphic-stores** is its state management layer — a framework-agnostic adapter system for plugging Zustand, Redux, etc. into Sluice's SSR model. They live in one repo as a single package (`sluice`).
 
-Originally conceived as a Zustand+react-server bridge, now being generalized to support any store-based framework. Atom-based frameworks (Jotai, Recoil) are out of scope.
+The core idea: stores are created server-side before render, async data is declared via `waitFor`, and Sluice's `Root` component blocks rendering until the store is ready. Client-side components can also create stores independently via `useCreateClientStore`.
 
-A secondary goal: replace the pattern of bubbling all UI updates up through a root element (which triggers full-tree re-renders) with granular per-component subscriptions via selectors. This library is intended to power both server and client rendering — not just be an SSR adapter that hands off to a singleton store on the client.
+A secondary goal: replace the pattern of bubbling all UI updates up through a root element (which triggers full-tree re-renders) with granular per-component subscriptions via selectors.
 
-### Key files
-- `src/core/types.ts` — all public types (`IsoStoreDefinition`, `IsoStoreInstance`, `SetAsyncState`, `OnMessage`, etc.)
-- `src/core/define.ts` — `defineIsoStore`, internal logic
-- `src/core/StoreProvider.tsx` — internal context Provider (handles instance register/teardown in useEffect); not part of public API
-- `src/provider.tsx` — `IsoStoreProvider`, the public multi-store provider component
-- `src/index.ts` — types-only entry point (`isomorphic-stores`)
-- `src/adapter.ts` — adapter author entry point (`isomorphic-stores/adapter`)
-- `src/examples/adapters/` — reference adapter implementations (Zustand, Redux)
-- `src/examples/react-server/stores.ts` — application-layer wrappers (`defineZustandIsoStore`, `defineReduxIsoStore`) combining adapter + `defineIsoStore`
-- `src/examples/react-server/` — example stores and components
+### Source layout
+
+```
+src/
+├── sluice/              # SSR framework
+│   ├── Page.ts          # Page interface (createStores, getElements, getTitle, getStyles)
+│   ├── buildClientBundle.ts
+│   ├── client.ts        # client entry point (bootstrap)
+│   ├── constants.ts     # DOM attribute names (PAGE_ROOT_ELEMENT_ATTR, etc.)
+│   ├── core/
+│   │   ├── RequestContext.ts
+│   │   ├── SluicePipe.ts       # typed server→client pipe instance (schema + constants)
+│   │   ├── elementTokenizer.ts
+│   │   ├── fetchAgent.ts       # isomorphic fetch cache (ALS server-side, rehydrated client-side)
+│   │   └── components/
+│   │       ├── Root.tsx
+│   │       ├── RootContainer.tsx
+│   │       └── TheFold.tsx
+│   ├── server/
+│   │   ├── renderBody.ts
+│   │   └── renderPage.tsx
+│   ├── tests/
+│   └── util/
+│       ├── ServerClientPipe.ts  # generic typed server→client pipe factory
+│       ├── cookies.ts
+│       └── requestLocal.ts
+├── stores/              # isomorphic-stores library
+│   ├── index.ts         # types-only entry point
+│   ├── adapter.ts       # adapter author API
+│   ├── provider.tsx     # IsoStoreProvider
+│   ├── core/
+│   │   ├── types.ts     # all public types (IsoStoreDefinition, IsoStoreInstance, etc.)
+│   │   ├── define.ts    # defineIsoStore, internal logic
+│   │   ├── constants.ts
+│   │   ├── StoreProvider.tsx
+│   │   └── lifecycle.ts
+│   └── tests/
+└── demo/                # demo app (exercises sluice + stores together)
+    ├── server.tsx
+    ├── DemoPage.tsx
+    ├── StoreRoot.tsx
+    ├── adapters/        # Zustand + Redux adapter implementations
+    ├── stores/          # demo store definitions + defineZustandIsoStore wrapper
+    └── components/
+```
 
 ### Package exports
-- `isomorphic-stores` → `src/index.ts` — types only
-- `isomorphic-stores/adapter` → `src/adapter.ts` — adapter author API
-- `isomorphic-stores/provider` → `src/provider.tsx` — `IsoStoreProvider`
+- `sluice` → `src/stores/index.ts` — types only
+- `sluice/adapter` → `src/stores/adapter.ts` — adapter author API
+- `sluice/provider` → `src/stores/provider.tsx` — `IsoStoreProvider`
 
-### Architecture
+### isomorphic-stores Architecture
 
 Two-layer factory pattern:
 - **Outer layer** (user-written `IsoStoreInit`): `(opts, { waitFor, onMessage, clientOnly }) => NativeStoreInit` — receives opts and a `fns` object, returns a native store initializer
 - **Inner layer** (framework): e.g. `(set, get) => State` for Zustand — the native store creator
 
-The `Adapter` bridges the two: `createNativeStore(nativeStoreInit)` turns the inner-layer result into an actual store instance. This separates the user's store logic from the framework-specific construction.
+The `Adapter` bridges the two: `createNativeStore(nativeStoreInit)` turns the inner-layer result into an actual store instance.
 
 Three levels of abstraction:
 1. **`defineIsoStore(isoInit, adapter, options?)`** — core library function; framework-agnostic
-2. **`getAdapter<State>()`** — adapter module (e.g. `adapters/zustand.ts`); encapsulates framework-specific types (`NativeStore`, `NativeStoreInit`, hook types). Must be called as `getAdapter<State>()` (not as an object literal) to ensure TypeScript infers `State` from the adapter rather than from `SetAsyncState<State>` in `IsoStoreInit`.
-3. **`defineZustandIsoStore(isoInit, options?)`** — application-layer wrapper in `stores.ts`; combines adapter + `defineIsoStore`. Both wrapper functions require `State extends object` to prevent primitive state types.
+2. **`getAdapter<State>()`** — adapter module (e.g. `demo/adapters/zustand.ts`); encapsulates framework-specific types. Must be called as `getAdapter<State>()` to ensure TypeScript infers `State` from the adapter.
+3. **`defineZustandIsoStore(isoInit, options?)`** — application-layer wrapper in `demo/stores/define.ts`; combines adapter + `defineIsoStore`.
 
 ```ts
 // Zustand example
 defineZustandIsoStore<MyOpts, MyState, MyMessage>(
   ({ userId }, { waitFor, onMessage, clientOnly }) => (  // outer: opts + fns
-    (set, get) => {                                      // inner: Zustand StateCreator (block body required for onMessage)
-      onMessage((msg) => {                               // called as a statement — registers handler, returns void
+    (set, get) => {                                      // inner: Zustand StateCreator
+      onMessage((msg) => {
         if (msg.type === 'reset') set({ name: '' });
       });
       return {
         ...waitFor('name', fetchName(userId), ''),       // blocks SSR render until resolved
-        ...clientOnly('recs', fetchRecs(userId), []),    // resolves after client mount; never blocks render
+        ...clientOnly('recs', fetchRecs(userId), []),    // resolves after client mount
         setName: (name) => set({ name }),
       };
     }
@@ -55,11 +90,11 @@ defineZustandIsoStore<MyOpts, MyState, MyMessage>(
 
 // Server-side usage
 const store = MyStore.createStore({ userId: 1 });
-// <RootElement when={store.whenReady}>
+// <Root when={store.whenReady}>
 //   <IsoStoreProvider instances={[store]}>
 //     <Widget />
 //   </IsoStoreProvider>
-// </RootElement>
+// </Root>
 
 // In server-rendered components
 const name = MyStore.useStore(s => s.name);
@@ -74,49 +109,54 @@ MyStore.broadcast(message);
 
 ### Design decisions
 - `waitFor(key, promise, initialValue)` — returns `{ key: initialValue }` to spread into state, registers promise; `setState` is called after native store is created (avoids chicken-and-egg). If a promise rejects, the key keeps its `initialValue` and `onError` is called if provided; `whenReady` still resolves.
-- `clientOnly(key, promise, initialValue)` — same API as `waitFor` but doesn't contribute to `whenReady`; the promise is awaited after the component mounts (triggered via `onMount` in `STORE_INSTANCE_INTERNALS`, called from `useIsoStoreLifecycle`). Designed for late-arriving data (e.g. react-server "late arrivals") that shouldn't block the initial render. The promise may never resolve server-side; that's fine.
+- `clientOnly(key, promise, initialValue)` — same API as `waitFor` but doesn't contribute to `whenReady`; the promise is awaited after the component mounts (triggered via `onMount` in `STORE_INSTANCE_INTERNALS`, called from `useIsoStoreLifecycle`). Designed for late-arriving data that shouldn't block the initial render.
 - `whenReady: Promise<void>` always resolves (never rejects), even if `waitFor` promises fail
-- Core has no dependency on any SSR or store framework — integration is at the call site
-- `Adapter<State, NativeStore, NativeStoreInit, NativeHook, NativeClientHook>` is an interface with five methods: `createNativeStore(nativeStoreInit)`, `getSetState(nativeStore)`, `getHook(getNativeStore)`, `getClientHook(getNativeStore, ready)`, and `getEmpty()`. Adapters explicitly declare `NativeHook` and `NativeClientHook` as type aliases (e.g. `ZustandHook<State>`) rather than using `typeof useNativeZustandStore`, since the actual hook signature (selector-only) differs from the underlying framework hook (api + selector).
-- `useStore` on `IsoStoreDefinition` is typed as `NativeHook` — fully transparent, delegates directly to the native framework hook. Consumers get the native hook's type (including selector inference) with no wrapper visible.
+- `stores/` has no dependency on any SSR or store framework — integration is at the call site
+- `Adapter<State, NativeStore, NativeStoreInit, NativeHook, NativeClientHook>` is an interface with five methods: `createNativeStore(nativeStoreInit)`, `getSetState(nativeStore)`, `getHook(getNativeStore)`, `getClientHook(getNativeStore, ready)`, and `getEmpty()`. Adapters explicitly declare `NativeHook` and `NativeClientHook` as type aliases rather than using `typeof useNativeZustandStore`, since the actual hook signature (selector-only) differs from the underlying framework hook.
+- `useStore` on `IsoStoreDefinition` is typed as `NativeHook` — fully transparent, delegates directly to the native framework hook.
 - `onMessage(handler)` — registers a message handler on the store instance, returns `void`; called as a statement in the inner factory before returning state
 - `broadcast(message)` — delivers a message to all currently-mounted instances of a store type (fire-and-forget). Is a no-op server-side.
-- `options?: { onError?: (error: unknown) => void }` — third argument to `defineIsoStore`; called with a wrapped error when a `waitFor` promise rejects. Intended to be wired to an application-level error reporter. Not a general-purpose logger interface.
-- Instance registration: `defineIsoStore` maintains `instancesByProvider: Map<ProviderID, IsoStoreInstance>` per definition. `StoreProvider` (internal) and `useCreateClientStore` each register/unregister independently under their own `ProviderID` (stable `useMemo` symbol). This supports sharing one instance across multiple provider trees — each provider manages its own entry, so the first to unmount doesn't evict the instance for others.
-- `STORE_INSTANCE_INTERNALS` symbol key on `IsoStoreInstance` holds `{ definition, identifier, nativeStore, messageHandlers, onMount }` — private to the library. `nativeStore` is used by `useStore` to call `adapter.getHook` at render time. `onMount` is a resolver called by `useIsoStoreLifecycle` on mount to trigger `clientOnly` promises.
-- `STORE_DEFINITION_INTERNALS` symbol key on `IsoStoreDefinition` holds `{ instancesByProvider, StoreProvider }` — keeps internals off the public API; consumers use `IsoStoreProvider` from `isomorphic-stores/provider` instead
+- `options?: { onError?: (error: unknown) => void }` — third argument to `defineIsoStore`; called with a wrapped error when a `waitFor` promise rejects.
+- Instance registration: `defineIsoStore` maintains `instancesByProvider: Map<ProviderID, IsoStoreInstance>` per definition. `StoreProvider` (internal) and `useCreateClientStore` each register/unregister independently under their own `ProviderID` (stable `useMemo` symbol).
+- `STORE_INSTANCE_INTERNALS` symbol key on `IsoStoreInstance` holds `{ definition, identifier, nativeStore, messageHandlers, onMount }` — private to the library.
+- `STORE_DEFINITION_INTERNALS` symbol key on `IsoStoreDefinition` holds `{ instancesByProvider, StoreProvider }` — keeps internals off the public API.
 
-### Cross-root communication
-Stores are scoped to React context trees, so components in different roots can't access each other's stores. `broadcast` is a minimal escape hatch: send a message to all mounted instances of a store type from anywhere. It's fire-and-forget with no request/response semantics. How cross-root communication should work more generally in an instance-based architecture is an open design question.
+### Sluice SSR pipeline
 
-### Demo site (`src/demo/`)
-
-A self-contained demo server that exercises the library against a minimal fake-react-server implementation. Run with `bun src/demo/server.tsx`.
-
-**`server.tsx`** — `Bun.serve` handler. At startup, builds the client bundle via `buildClientBundle`. On each request, creates a per-request fetch cache in an `AsyncLocalStorage` slot, instantiates `DemoPage`, and streams the response from `renderPage`.
-
-**`DemoPage.tsx`** — implements the `Page` interface (`createStores()` + `getElements()`). Creates store instances and returns an array of `<RootElement when={...}>` elements interleaved with a `<TheFold />` marker.
-
-**`fake-react-server/`** — minimal SSR streaming pipeline modelling react-server's behaviour:
-- `renderPage.tsx` — streams HTML as roots become ready. Writes the shell immediately, then for each element awaits `element.props.when` before calling `renderToString`. Flushes roots in order as their slots resolve. When `TheFold` resolves, injects the dehydrated fetch cache and client bundle `<script>` tags and calls `nodeArrival(0, lastRootBeforeFold)` to hydrate already-arrived roots. Roots arriving after the fold get an inline `nodeArrival` call as they stream in.
-- `RootElement.tsx` — pass-through component; `when` is read directly from props by `renderPage`, not by the component itself.
-- `TheFold.tsx` — null-rendering sentinel component; `isTheFold()` identifies it by component type.
-- `fetchAgent.ts` — isomorphic fetch wrapper. Server-side: caches responses in the ALS-backed `Map` and dehydrates it to `window.__FETCH_CACHE__`. Client-side: rehydrates from `window.__FETCH_CACHE__` so stores resolve instantly from cache instead of re-fetching.
-- `bootstrap.tsx` — client entry point. Rehydrates the fetch cache, creates a fresh `Page` instance (stores resolve from cache), awaits all `when` promises, then calls `initClientController` with the hydrated roots.
-- `ClientController.ts` — calls `hydrateRoot` for each root as `nodeArrival` events arrive (either replaying buffered arrivals or handling live ones after bootstrap completes).
-- `buildClientBundle.ts` — writes a temporary entry file that imports `PageClass` and calls `bootstrap(PageClass)`, then uses `Bun.build` to bundle it for the browser.
+- `renderPage.tsx` — streams HTML as roots become ready. Writes the shell immediately, then for each element awaits `element.props.when` before calling `renderToString`. When `TheFold` is reached, injects the dehydrated fetch cache and client bundle `<script>` tags. Roots arriving after the fold get inline `rootArrival` calls as they stream in.
+- `Root.tsx` — pass-through component; `when` is read directly from props by `renderPage`.
+- `TheFold.tsx` — null-rendering sentinel; identifies the above/below-fold boundary.
+- `fetchAgent.ts` — isomorphic fetch wrapper. Server-side: caches responses in an ALS-backed `Map` and dehydrates via `SluicePipe`. Client-side: rehydrates from the pipe so stores resolve instantly from cache.
+- `ServerClientPipe.ts` — generic factory (`createPipe<Schema>`) for typed server→client data transport via inline `<script>` tags. `SluicePipe.ts` is the sluice-specific instance.
+- `client.ts` — client entry point. Rehydrates the fetch cache from the pipe, creates a fresh `Page` instance, tokenizes elements, then hydrates roots as `rootArrival` events arrive.
+- `buildClientBundle.ts` — writes a temporary entry file that imports `PageClass` and calls `bootstrap(PageClass)`, then uses `Bun.build` to bundle for the browser.
 
 **SSR correctness note:** Zustand's `useStore` uses `useSyncExternalStore` with `getInitialState()` as the server snapshot, which returns state at construction time — before `waitFor` resolves. The Zustand adapter overrides `store.getInitialState = store.getState` so `renderToString` (called after `whenReady`) sees the resolved async values.
 
-### TODOs
-- Add a mechanism for adapters to integrate the isomorphic-stores `StoreProvider` with a framework-native provider — e.g. so the Redux adapter can render a react-redux `<Provider store={store}>` alongside the isomorphic-stores context, enabling `useDispatch`, devtools, and the rest of the react-redux ecosystem within the same subtree
-- Add a demo of `nativeStore` access in `DemoPage`: a component that takes the instance as a prop (not via context, no `IsoStoreProvider` needed) and reads state imperatively via `instance.nativeStore.getState()` on button click — contrasting with the surrounding `useStore`-via-context components
+### Cross-root communication
+Stores are scoped to React context trees. `broadcast` is a minimal escape hatch: send a message to all mounted instances of a store type from anywhere. Fire-and-forget, no request/response semantics.
 
-### Open questions
+### Demo site
+Run with `bun src/demo/server.tsx`. Exercises sluice + isomorphic-stores together with Zustand stores, streaming roots, TheFold, late data arrivals, and cross-root broadcast.
+
+### TODOs
+
+#### sluice (SSR framework)
+- Implement render timeout in `renderPage.tsx`
+- add more methods to the Page API like getStyles, getScripts, etc
+- Add a `createSluiceServer` function so server boilerplate (bundle build, `/client.js` route, SSR catch-all, `setBaseUrl`) lives in the framework rather than user code; this is also required for isomorphic cookie support — `renderPage` currently returns a bare `ReadableStream` with no access to the `Response` object, so the framework cannot set `Set-Cookie` headers. `createSluiceServer` would own `Response` construction, read pending cookies from RLS after `createStores()`, and attach them as headers before streaming begins
+- Support pre-building the client bundle as a separate step (for prod), distinct from on-the-fly bundling at dev server startup
+- HMR for the client bundle in the dev server — currently requires a restart to pick up changes; `Bun.build` has no watch mode, so this would need to be built on top of it
+
+#### isomorphic-stores
+- Add a mechanism for adapters to integrate the isomorphic-stores `StoreProvider` with a framework-native provider — e.g. so the Redux adapter can render a react-redux `<Provider store={store}>` alongside the isomorphic-stores context
+- `useCreateClientStore` should return a `StoreProvider` so descendants can use `useStore` rather than threading `useClientStore` through the tree
+- Stores that depend on other stores — not yet designed
 - Client-side re-fetching / "going pending again" — not yet designed
-- Cross-root communication: request/response pattern not yet designed; subscriptions addressed via shared instances
-- `useCreateClientStore` should return a `StoreProvider` so descendants can read from the store via `useStore` rather than threading `useClientStore` through the tree
-- stores that depend on other stores? like a childStore declaration next to waitFor
+- Cross-root communication: request/response pattern not yet designed
+
+#### demo
+- Add a demo of `nativeStore` access in `DemoPage`: a component that reads state imperatively via `instance.nativeStore.getState()` on button click
 
 ---
 

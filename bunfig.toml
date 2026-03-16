@@ -1,2 +1,5 @@
+[define]
+SERVER_SIDE = "true"
+
 [test]
-preload = ["./src/tests/setup.ts"]
+preload = ["./src/stores/tests/setup.ts", "./src/sluice/tests/setup.ts"]

@@ -3,9 +3,9 @@ import { ProfileStore } from '../stores';
 import { Card, Panel, Label } from './ui';
 
 export function User() {
-  const username = ProfileStore.useStore((s) => s.username);
-  const email = ProfileStore.useStore((s) => s.email);
-  const rename = ProfileStore.useStore((s) => s.rename);
+  const username = ProfileStore.hooks.useStore((s) => s.username);
+  const email = ProfileStore.hooks.useStore((s) => s.email);
+  const rename = ProfileStore.hooks.useStore((s) => s.rename);
   const [input, setInput] = useState('');
 
   return (

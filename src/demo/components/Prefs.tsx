@@ -5,10 +5,10 @@ import { Card, Panel, Label } from './ui';
 const ACCENTS = ['#6366f1', '#ec4899', '#22c55e', '#f59e0b', '#38bdf8'];
 
 export function Prefs() {
-  const theme = ThemeStore.useStore((s) => s.theme);
-  const accent = ThemeStore.useStore((s) => s.accent);
-  const setTheme = ThemeStore.useStore((s) => s.setTheme);
-  const setAccent = ThemeStore.useStore((s) => s.setAccent);
+  const theme = ThemeStore.hooks.useStore((s) => s.theme);
+  const accent = ThemeStore.hooks.useStore((s) => s.accent);
+  const setTheme = ThemeStore.hooks.useStore((s) => s.setTheme);
+  const setAccent = ThemeStore.hooks.useStore((s) => s.setAccent);
 
   return (
     <Card

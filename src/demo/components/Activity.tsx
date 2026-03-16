@@ -3,9 +3,9 @@ import { ActivityStore } from '../stores';
 import { Card, Panel, Label } from './ui';
 
 export function Activity() {
-  const recentItems = ActivityStore.useStore((s) => s.recentItems);
-  const liveCount = ActivityStore.useStore((s) => s.liveCount);
-  const increment = ActivityStore.useStore((s) => s.increment);
+  const recentItems = ActivityStore.hooks.useStore((s) => s.recentItems);
+  const liveCount = ActivityStore.hooks.useStore((s) => s.liveCount);
+  const increment = ActivityStore.hooks.useStore((s) => s.increment);
 
   return (
     <Card

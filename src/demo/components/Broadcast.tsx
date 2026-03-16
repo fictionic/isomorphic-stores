@@ -3,7 +3,7 @@ import { ProfileStore } from '../stores';
 import { Card, Panel, Label } from './ui';
 
 export function Broadcast() {
-  const username = ProfileStore.useStore((s) => s.username);
+  const username = ProfileStore.hooks.useStore((s) => s.username);
 
   return (
     <Card

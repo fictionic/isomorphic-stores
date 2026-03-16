@@ -1,14 +1,16 @@
 import React from 'react';
+import { getCookie, setCookie } from '@/sluice/util/cookies';
 
 const OPTIONS = [10, 100, 500, 1000];
 
 interface RadioGroupProps {
   label: string;
   cookieName: string;
-  current: number;
+  fallback: number;
 }
 
-function LatencyRadioGroup({ label, cookieName, current }: RadioGroupProps) {
+function LatencyRadioGroup({ label, cookieName, fallback }: RadioGroupProps) {
+  const current = Number(getCookie(cookieName)) || fallback;
   return (
     <div style={{ marginBottom: '16px' }}>
       <div
@@ -34,7 +36,7 @@ function LatencyRadioGroup({ label, cookieName, current }: RadioGroupProps) {
               value={String(ms)}
               defaultChecked={current === ms}
               onChange={() => {
-                document.cookie = `${cookieName}=${ms}; path=/`;
+                setCookie(cookieName, String(ms));
                 window.location.reload();
               }}
             />
@@ -46,13 +48,7 @@ function LatencyRadioGroup({ label, cookieName, current }: RadioGroupProps) {
   );
 }
 
-interface Props {
-  users: number;
-  theme: number;
-  activity: number;
-}
-
-export function LatencyControls({ users, theme, activity }: Props) {
+export function LatencyControls() {
   return (
     <div
       style={{
@@ -65,13 +61,9 @@ export function LatencyControls({ users, theme, activity }: Props) {
       <h3 style={{ margin: '0 0 16px', fontSize: '14px', color: '#cba6f7', fontWeight: 600 }}>
         Latency Controls
       </h3>
-      <LatencyRadioGroup label="Users API" cookieName="latency_users" current={users} />
-      <LatencyRadioGroup label="Theme API" cookieName="latency_theme" current={theme} />
-      <LatencyRadioGroup
-        label="Activity API"
-        cookieName="latency_activity"
-        current={activity}
-      />
+      <LatencyRadioGroup label="Users API" cookieName="latency_users" fallback={500} />
+      <LatencyRadioGroup label="Theme API" cookieName="latency_theme" fallback={400} />
+      <LatencyRadioGroup label="Activity API" cookieName="latency_activity" fallback={1500} />
     </div>
   );
 }

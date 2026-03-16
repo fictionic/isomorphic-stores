@@ -1,0 +1,131 @@
+import { getCache, dehydrateCache, getPendingRequests } from '../core/fetchAgent';
+import type { Page, PageStyle } from '../Page';
+import { startRequest } from '../util/requestLocal';
+import { RequestContext } from './RequestContext';
+import { writeBody } from './writeBody';
+import { AGENT_CACHE_KEY, FN_RECEIVE_LATE_DATA_ARRIVAL, FN_HYDRATE_ROOTS_UP_TO, SluicePipe } from '../core/SluicePipe';
+
+const encoder = new TextEncoder();
+
+const RENDER_TIMEOUT_MS = 20_000;
+// TODO timeout
+
+function renderStyles(styles: PageStyle[]): string {
+  return styles.map(s =>
+    typeof s === 'string'
+      ? `<style>${s}</style>`
+      : `<link rel="stylesheet" href="${s.href}">`
+  ).join('\n');
+}
+
+export function renderPage(
+  req: Request,
+  PageClass: new () => Page,
+  clientBundleUrl: string,
+): ReadableStream<Uint8Array> {
+  let ctrl!: ReadableStreamDefaultController<Uint8Array>;
+  let writeBuffer = '';
+
+  function write(chunk: string) {
+    writeBuffer += chunk;
+  }
+
+  function flush() {
+    if (writeBuffer.length === 0) return;
+    ctrl.enqueue(encoder.encode(writeBuffer));
+    writeBuffer = '';
+  }
+
+  const writeablePipe = SluicePipe.writer(write);
+
+  const stream = new ReadableStream<Uint8Array>({
+    start(c) {
+      ctrl = c;
+      startRequest(() => {
+        new RequestContext(req).register();
+        run().catch((err) => {
+          console.error('[renderPage]', err);
+          ctrl.error(err);
+        });
+      });
+    },
+  });
+
+  async function run() {
+    const page = new PageClass();
+    page.createStores();
+    let lateArrivalsPromise: Promise<void> | null = null;
+
+    write(`<!DOCTYPE html><html lang="en"><head>`);
+    write(`<title>${page.getTitle()}</title>`);
+    write(`${renderStyles(page.getStyles())}`);
+    write(`</head><body>`);
+    flush();
+
+    // TODO: probably need to use RLS for these
+    let haveBootstrapped = false;
+
+    let lastRootIndex = 0;
+    const onRoot = (index: number) => {
+      if (haveBootstrapped) {
+        hydrateRootsUpTo(index);
+        flush();
+      }
+      lastRootIndex = index;
+    };
+
+    const onTheFold = (index: number) => {
+      if (haveBootstrapped) {
+        console.warn(`renderPage: unexpected additional TheFold at index ${index}`);
+        return;
+      }
+      bootstrapClient(index);
+      lateArrivalsPromise = setupLateArrivals();
+      haveBootstrapped = true;
+    };
+
+    // TODO: pass a context object containing a timeout deferred
+    await writeBody(page, write, onRoot, onTheFold);
+
+    if (!haveBootstrapped) {
+      // if TheFold wasn't declared, then it's after the last root
+      onTheFold(lastRootIndex + 1);
+    }
+
+    if (lateArrivalsPromise) await lateArrivalsPromise;
+    write('</body></html>');
+    flush();
+    ctrl.close();
+  }
+
+  function hydrateRootsUpTo(index: number) {
+    writeablePipe.callFn(FN_HYDRATE_ROOTS_UP_TO, [index]);
+  }
+
+  function bootstrapClient(theFoldIndex: number) {
+    const agentCache = dehydrateCache();
+    writeablePipe.writeValue(AGENT_CACHE_KEY, agentCache);
+    write(`<script type="module" src="${clientBundleUrl}"></script>\n`);
+    hydrateRootsUpTo(theFoldIndex - 1);
+    flush();
+  }
+
+  function setupLateArrivals(): Promise<void> {
+    const pending = getPendingRequests();
+    if (pending.length === 0) return Promise.resolve();
+
+    return Promise.allSettled(
+      pending.map(({ url, promise }) => {
+        promise.then(() => {
+          const entry = getCache().get(url);
+          if (entry) {
+            writeablePipe.callFn(FN_RECEIVE_LATE_DATA_ARRIVAL, [url, entry]);
+            flush();
+          }
+        })
+      }
+    )).then(() => {});
+  }
+
+  return stream;
+}
