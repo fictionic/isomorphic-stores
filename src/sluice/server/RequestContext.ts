@@ -1,4 +1,4 @@
-import { parse } from 'cookie';
+import { parse, type Cookies } from 'cookie';
 import { getNamespace } from '../util/requestLocal';
 
 const RLS = getNamespace<{ requestContext: RequestContext }>();
@@ -7,7 +7,7 @@ export class RequestContext {
   readonly url: string;
   readonly method: string;
   readonly headers: Headers;
-  private _cookies: Record<string, string> | null = null;
+  private _cookies: Cookies | null = null;
 
   constructor(req: Request) {
     this.url = req.url;
@@ -15,7 +15,7 @@ export class RequestContext {
     this.headers = req.headers;
   }
 
-  get cookies(): Record<string, string> {
+  get cookies(): Cookies {
     if (!this._cookies) {
       this._cookies = parse(this.headers.get('cookie') ?? '');
     }
