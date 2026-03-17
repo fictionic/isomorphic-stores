@@ -1,5 +1,5 @@
 import React from 'react';
-import { test, expect, describe } from 'bun:test';
+import { test, expect, describe } from 'vitest';
 import { renderPage } from '@/sluice/server/renderPage';
 import { Root, makeRootComponent } from '@/sluice/core/components/Root';
 import RootContainer from '@/sluice/core/components/RootContainer';
@@ -20,9 +20,11 @@ async function collectStream(stream: ReadableStream<Uint8Array>): Promise<string
   return result;
 }
 
+const TEST_RENDER_TIMEOUT_MS = 150;
+
 function render(PageClass: new () => Page, clientBundleUrl = '/client.js'): Promise<string> {
   const req = new Request('http://localhost/');
-  return collectStream(renderPage(req, PageClass, clientBundleUrl));
+  return collectStream(renderPage(req, PageClass, clientBundleUrl, TEST_RENDER_TIMEOUT_MS));
 }
 
 function simplePage(elements: React.ReactElement[], opts?: { title?: string; styles?: PageStyle[] }): new () => Page {
@@ -282,8 +284,7 @@ describe('renderPage', () => {
     expect(html).toContain('<script type="module" src="/bundle.js">');
   });
 
-  test('times out and skips pending elements after 20s', async () => {
-    // Create a promise that never resolves
+  test('times out and skips pending elements', async () => {
     const neverResolves = new Promise<null>(() => {});
 
     const P = simplePage([
@@ -292,24 +293,13 @@ describe('renderPage', () => {
       <Root><div>Also Ready</div></Root>,
     ]);
 
-    // Monkey-patch the timeout to be short for testing
-    const originalSetTimeout = globalThis.setTimeout;
-    globalThis.setTimeout = ((fn: Function, ms?: number) => {
-      // Replace the 20s timeout with 50ms
-      return originalSetTimeout(fn, ms && ms >= 10000 ? 50 : ms);
-    }) as any;
+    const req = new Request('http://localhost/');
+    const html = await collectStream(renderPage(req, P, '/client.js', 50));
 
-    try {
-      const html = await render(P);
-
-      expect(html).toContain('Ready');
-      expect(html).toContain('Also Ready');
-      // The stuck element should be skipped
-      expect(html).not.toContain('Stuck');
-      expect(html).toContain('</body></html>');
-    } finally {
-      globalThis.setTimeout = originalSetTimeout;
-    }
+    expect(html).toContain('Ready');
+    expect(html).toContain('Also Ready');
+    expect(html).not.toContain('Stuck');
+    expect(html).toContain('</body></html>');
   });
 
   test('calls createStores on the page', async () => {

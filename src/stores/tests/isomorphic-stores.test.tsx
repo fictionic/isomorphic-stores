@@ -1,4 +1,5 @@
-import { afterEach, expect, test } from "bun:test";
+// @vitest-environment jsdom
+import { afterEach, expect, test } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor as waitForDom } from "@testing-library/react";
 import { IsoStoreProvider } from "../../stores/provider";
 import {defineZustandIsoStore} from "../../demo/stores/define";

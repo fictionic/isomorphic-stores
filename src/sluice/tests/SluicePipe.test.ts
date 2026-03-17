@@ -1,4 +1,5 @@
-import { test, expect, describe, beforeEach } from 'bun:test';
+// @vitest-environment jsdom
+import { test, expect, describe, beforeEach } from 'vitest';
 import { createPipe } from '@/sluice/util/ServerClientPipe';
 
 const PIPE_NAME = 'test';
