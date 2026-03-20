@@ -114,7 +114,7 @@ export function renderPage(
     const fetchCache = Fetch.getCache().server().dehydrate();
     console.log('[renderPage:debug] dehydrated cache keys:', Object.keys(fetchCache), 'entries:', Object.entries(fetchCache).map(([k, v]) => `${k}: response=${!!v.response}, requesters=${v.requesters}`));
     writeablePipe.writeValue(FETCH_CACHE_KEY, fetchCache);
-    write(`<script type="module" src="${clientBundleUrl}"></script>\n`);
+    write(`<script async type="module" src="${clientBundleUrl}"></script>\n`);
     hydrateRootsUpTo(theFoldIndex - 1);
     flush();
   }
