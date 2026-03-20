@@ -1,9 +1,9 @@
-import { getCache, dehydrateCache, getPendingRequests, setUrlPrefix } from '../core/fetch';
 import type { Page, PageStyle } from '../Page';
 import { startRequest } from '../util/requestLocal';
 import { RequestContext } from './RequestContext';
 import { writeBody } from './writeBody';
 import { FETCH_CACHE_KEY, FN_RECEIVE_LATE_DATA_ARRIVAL, FN_HYDRATE_ROOTS_UP_TO, SluicePipe } from '../core/SluicePipe';
+import { Fetch } from '../core/fetch/Fetch';
 
 const encoder = new TextEncoder();
 
@@ -50,7 +50,9 @@ export function renderPage(
 
   startRequest(() => {
     new RequestContext(req).register();
-    if (urlPrefix) setUrlPrefix(urlPrefix);
+    Fetch.init({
+      urlPrefix: urlPrefix ?? null,
+    });
     run().catch((err) => {
       console.error('[renderPage]', err);
       writer.abort(err);
@@ -60,7 +62,7 @@ export function renderPage(
   async function run() {
     const page = new PageClass();
     page.createStores();
-    let lateArrivalsPromise: Promise<void> | null = null;
+    const lateArrivalsDfd = Promise.withResolvers<void>();
 
     write(`<!DOCTYPE html><html lang="en"><head>`);
     write(`<title>${page.getTitle()}</title>`);
@@ -86,7 +88,7 @@ export function renderPage(
         return;
       }
       bootstrapClient(index);
-      lateArrivalsPromise = setupLateArrivals();
+      lateArrivalsDfd.resolve(setupLateArrivals());
       haveBootstrapped = true;
     };
 
@@ -98,7 +100,7 @@ export function renderPage(
       onTheFold(lastRootIndex + 1);
     }
 
-    if (lateArrivalsPromise) await lateArrivalsPromise;
+    await lateArrivalsDfd.promise;
     write('</body></html>');
     flush();
     writer.close();
@@ -109,7 +111,8 @@ export function renderPage(
   }
 
   function bootstrapClient(theFoldIndex: number) {
-    const fetchCache = dehydrateCache();
+    const fetchCache = Fetch.getCache().server().dehydrate();
+    console.log('[renderPage:debug] dehydrated cache keys:', Object.keys(fetchCache), 'entries:', Object.entries(fetchCache).map(([k, v]) => `${k}: response=${!!v.response}, requesters=${v.requesters}`));
     writeablePipe.writeValue(FETCH_CACHE_KEY, fetchCache);
     write(`<script type="module" src="${clientBundleUrl}"></script>\n`);
     hydrateRootsUpTo(theFoldIndex - 1);
@@ -117,17 +120,14 @@ export function renderPage(
   }
 
   function setupLateArrivals(): Promise<void> {
-    const pending = getPendingRequests();
+    const pending = Fetch.getCache().server().getPending();
     if (pending.length === 0) return Promise.resolve();
 
     return Promise.allSettled(
       pending.map(({ url, promise }) => {
-        promise.then(() => {
-          const entry = getCache().get(url);
-          if (entry) {
-            writeablePipe.callFn(FN_RECEIVE_LATE_DATA_ARRIVAL, [url, entry]);
-            flush();
-          }
+        return promise.then((response) => {
+          writeablePipe.callFn(FN_RECEIVE_LATE_DATA_ARRIVAL, [url, response]);
+          flush();
         })
       }
     )).then(() => {});

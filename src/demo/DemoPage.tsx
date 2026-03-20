@@ -54,7 +54,7 @@ export default class DemoPage implements Page {
   getElements(): React.ReactElement[] {
     const { profile1, theme1, activity, broadcast } = this;
     return [
-      <RootContainer style="max-width:960px;margin:0 auto;padding:40px 20px">
+      <RootContainer style={{ maxWidth: 960, margin: '0 auto', padding: '40px 20px' }}>
         <div>
           <h1 style={{ color: '#cba6f7', margin: '0 0 6px', fontSize: '28px' }}>isomorphic-stores</h1>
           <p style={{ color: '#6c7086', margin: '0 0 40px', fontSize: '15px', lineHeight: 1.6 }}>
@@ -64,7 +64,7 @@ export default class DemoPage implements Page {
             {' '}triggers client bootstrap before all roots have arrived.
           </p>
         </div>
-        <RootContainer style="display:grid;grid-template-columns:1fr 280px;gap:32px;align-items:start">
+        <RootContainer style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 32, alignItems: 'start' }}>
           <RootContainer>
             <StoreRoot stores={[profile1]}>
               <User />
@@ -80,7 +80,7 @@ export default class DemoPage implements Page {
               <Broadcast />
             </StoreRoot>
           </RootContainer>
-          <RootContainer style="position:sticky;top:24px">
+          <RootContainer style={{ position: 'sticky', top: 24 }}>
             <LatencyControls />
           </RootContainer>
         </RootContainer>

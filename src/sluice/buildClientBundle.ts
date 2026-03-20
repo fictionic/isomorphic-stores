@@ -5,7 +5,7 @@ export async function buildClientBundle(pageModulePath: string): Promise<string>
 
   await Bun.write(entryPath, `
 import PageClass from ${JSON.stringify(pageModulePath)};
-import { bootstrap } from ${JSON.stringify(import.meta.dir + '/client.ts')};
+import { bootstrap } from ${JSON.stringify(import.meta.dir + '/client/bootstrap.ts')};
 bootstrap(PageClass);
 `);
 

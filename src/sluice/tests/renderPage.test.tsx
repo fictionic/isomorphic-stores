@@ -164,13 +164,13 @@ describe('renderPage', () => {
 
   test('RootContainer wraps children in container divs', async () => {
     const P = simplePage([
-      <RootContainer style="max-width:800px">
+      <RootContainer style={{ maxWidth: 800 }}>
         <Root><div>Inside</div></Root>
       </RootContainer>,
     ]);
     const html = await render(P);
 
-    expect(html).toContain('style="max-width:800px"');
+    expect(html).toContain('max-width');
     expect(html).toContain('Inside');
   });
 

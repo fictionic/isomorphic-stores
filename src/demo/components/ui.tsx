@@ -13,6 +13,7 @@ export function Card({
 }) {
   return (
     <div
+      data-card={title}
       style={{
         background: '#1e1e2e',
         border: '1px solid #313244',

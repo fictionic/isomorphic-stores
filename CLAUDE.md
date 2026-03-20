@@ -19,7 +19,11 @@ src/
 │   ├── core/
 │   │   ├── SluicePipe.ts       # typed server→client pipe instance (schema + constants)
 │   │   ├── elementTokenizer.ts
-│   │   ├── fetch.ts            # isomorphic fetch (caching, dedup, dehydration for GETs; urlPrefix for all)
+│   │   ├── fetch/
+│   │   │   ├── index.ts        # consumer-facing export: just `fetch`
+│   │   │   ├── Fetch.ts        # framework-facing interface: init, fetch, getCache
+│   │   │   ├── cache.ts        # FetchCache class (server/client accessor objects)
+│   │   │   └── nativeFetch.ts  # indirection for globalThis.fetch (mockable in tests)
 │   │   └── components/
 │   │       ├── Root.tsx
 │   │       ├── RootContainer.tsx
@@ -126,12 +130,27 @@ MyStore.broadcast(message);
 - `renderPage.ts` — streams HTML as roots become ready. Writes the shell immediately, then for each element awaits `element.props.when` before calling `renderToString`. When `TheFold` is reached, injects the dehydrated fetch cache and client bundle `<script>` tags. Roots arriving after the fold get inline `hydrateRootsUpTo` calls as they stream in.
 - `Root.tsx` — pass-through component; `when` is read directly from props by `renderPage`.
 - `TheFold.tsx` — null-rendering sentinel; identifies the above/below-fold boundary.
-- `fetch.ts` — isomorphic `fetch` replacement. GETs are cached, deduplicated, and dehydrated via `SluicePipe`; non-GETs pass through with urlPrefix applied. Returns real `Response` objects. Client-side rehydrates from the pipe so GETs resolve instantly from cache.
+- `fetch/` — isomorphic fetch subsystem. Two audiences: consumers import `fetch` from `index.ts`; the framework uses `Fetch.init()`, `Fetch.fetch()`, and `Fetch.getCache()` from `Fetch.ts`. `Fetch.init()` creates a per-request `FetchCache` in RLS and sets `urlPrefix`. GETs are cached, deduplicated, and dehydrated; non-GETs pass through with `urlPrefix` applied. `FetchCache` exposes `server()` and `client()` accessor objects with environment-specific APIs. `nativeFetch.ts` provides an indirection over `globalThis.fetch` for testability.
 - `ServerClientPipe.ts` — generic factory (`createPipe<Schema>`) for typed server→client data transport via inline `<script>` tags. `SluicePipe.ts` is the sluice-specific instance.
-- `client.ts` — client entry point. Rehydrates the fetch cache from the pipe, creates a fresh `Page` instance, tokenizes elements, then hydrates roots as `hydrateRootsUpTo` events arrive.
+- `client/` — client entry point. Calls `Fetch.init()`, rehydrates the fetch cache from the pipe, creates a fresh `Page` instance, tokenizes elements, then hydrates roots as `hydrateRootsUpTo` events arrive.
 - `buildClientBundle.ts` — writes a temporary entry file that imports `PageClass` and calls `bootstrap(PageClass)`, then uses `Bun.build` to bundle for the browser.
 
 **SSR correctness note:** Zustand's `useStore` uses `useSyncExternalStore` with `getInitialState()` as the server snapshot, which returns state at construction time — before `waitFor` resolves. The Zustand adapter overrides `store.getInitialState = store.getState` so `renderToString` (called after `whenReady`) sees the resolved async values.
+
+### Fetch subsystem
+
+Two-audience design:
+- **Consumer** (`fetch/index.ts`): exports only the `fetch` function — a drop-in isomorphic replacement for `globalThis.fetch`.
+- **Framework** (`fetch/Fetch.ts`): exports the `Fetch` object with `init()`, `fetch()`, and `getCache()`. `renderPage` calls `Fetch.init()` to create a per-request `FetchCache` in RLS; `writeBody` calls `Fetch.getCache()` to dehydrate/stream cached responses.
+
+`FetchCache` (`fetch/cache.ts`) uses a server/client accessor pattern:
+- `cache.server()` — `receiveRequest(url)` returns `{ first, promise }`: creates the entry + deferred on first call, increments requesters on subsequent calls, always returns the deferred's promise. All callers (first and dedup) resolve through the same promise. `receiveResponse(url, Response)` consumes the body, caches the result, and resolves the deferred. `receiveError(url, Error)` rejects the deferred and stores the error message for dehydration. `dehydrate()` returns the serializable data. `getPending()` returns entries that are neither resolved nor errored, for streaming late arrivals.
+- `cache.client()` — `rehydrate(data)` populates from dehydrated server data; resolves or rejects each entry's deferred based on `response`/`errorMessage`. `receiveRequest(url)` returns the cached promise or `null`. `receiveCachedResponse(url, CachedResponse)` resolves late-arrival entries. `consumeResponse(url)` decrements the requester count and removes the entry (both `data` and `pending`) when exhausted.
+- `CacheEntry` shape: `{ response: CachedResponse | null, errorMessage: string | null, requesters: number }` — network failures are serialized as `errorMessage` so the client can replay the same rejection for hydration consistency.
+
+`nativeFetch.ts` — captures `globalThis.fetch` at module load time behind a named export, so vitest can mock the module without fighting hoisting.
+
+Server-side error handling: `Fetch.fetch()` fires the native fetch as a fire-and-forget side effect that feeds the deferred via `receiveResponse` or `receiveError`. Since all callers (including the first) use the deferred's promise, there are no orphaned promises on rejection. HTTP error statuses (4xx/5xx) are not errors — native `fetch()` resolves normally for those, and they flow through the cache like any other response. Only network failures (DNS, connection refused, etc.) trigger `receiveError`.
 
 ### Cross-root communication
 Stores are scoped to React context trees. `broadcast` is a minimal escape hatch: send a message to all mounted instances of a store type from anywhere. Fire-and-forget, no request/response semantics.
@@ -148,8 +167,10 @@ Run with `bun src/demo/server.tsx`. Exercises sluice + isomorphic-stores togethe
 - add more methods to the Page API like getStyles, getScripts, etc
 - API to allow page authors to transport arbitrary server-side data down to the client
 - routing
-- add the ability to register a callback on Root mount for a particular Root, and when all Roots have mounted, for automated tests
+- middleware
+- add the ability to register a callback on Root mount for a particular Root
 - fetch: support for opting into response replaying of non-GET requests
+- fetch: binary (non-text) responses should bypass the cache rather than being corrupted by `response.text()`
 
 #### isomorphic-stores
 - Add a mechanism for adapters to integrate the isomorphic-stores `StoreProvider` with a framework-native provider — e.g. so the Redux adapter can render a react-redux `<Provider store={store}>` alongside the isomorphic-stores context
@@ -160,7 +181,6 @@ Run with `bun src/demo/server.tsx`. Exercises sluice + isomorphic-stores togethe
 
 #### demo
 - Add a demo of `nativeStore` access in `DemoPage`: a component that reads state imperatively via `instance.nativeStore.getState()` on button click
-- automated tests via playwright
 
 ---
 
@@ -202,6 +222,13 @@ Tests that need DOM globals (e.g. `document`, `window`) use a per-file annotatio
 // @vitest-environment jsdom
 import { test, expect } from "vitest";
 ```
+
+### E2E tests
+
+E2E tests use Playwright. Config is in `playwright.config.ts`. Tests are in `e2e/`. Run with `bunx playwright test`.
+
+- `e2e/helpers/fixtures.ts` provides a custom `test` fixture that patches `page.goto` to wait for sluice client hydration (`CLIENT_READY_DFD`) by default. Import `test` and `expect` from `./helpers/fixtures` in e2e tests.
+- Card components render a `data-card` attribute with the card title for stable test locators (e.g. `page.locator('[data-card="User Profile"]')`).
 
 ## Frontend
 

@@ -2,7 +2,7 @@ import { renderToString } from 'react-dom/server';
 import { scheduleRender } from '../core/components/Root';
 import type { Page } from '../Page';
 import {TOKEN, tokenizeElements, type PageElementToken} from '../core/elementTokenizer';
-import type {RootContainerElementType} from '../core/components/RootContainer';
+import {renderContainerOpen, renderContainerClose} from '../core/components/RootContainer';
 import {PAGE_ELEMENT_TOKEN_ID_ATTR, PAGE_ROOT_ELEMENT_ATTR} from '../constants';
 
 const TOKEN_STATUS = {
@@ -27,47 +27,7 @@ export async function writeBody(
 ) {
   const elements = page.getElements();
   const tokens = tokenizeElements(elements);
-  const renderedTokens: RenderedToken[] = [];
-
-  let next = 0;
-  // TODO: is there an easy way to avoid defining this logic above the rendering?
-  const writeRenderedTokens = () => {
-    let buffer = ''
-    let i = next;
-    for(; i < renderedTokens.length; i++) {
-      const slot = renderedTokens[i]!;
-      if (slot.status === TOKEN_STATUS.PENDING) {
-        // have to go in order. we're blocked until the next one is ready
-        break;
-      } else if (slot.status === TOKEN_STATUS.WRITTEN) {
-        // this shouldn't happen. runtime invariant.
-        console.error("[renderBody] elements rendering out of order!");
-        continue;
-      } else if (slot.status === TOKEN_STATUS.FAILED_RENDERING) {
-        // nothing to render. just keep moving
-        continue;
-      } else if (slot.status === TOKEN_STATUS.RENDERED) {
-        // got one!
-        if (slot.token.type === TOKEN.THE_FOLD) {
-          onTheFold(i); // bootstrap the client
-          slot.status = TOKEN_STATUS.WRITTEN;
-          continue;
-        }
-        if (slot.html) {
-          buffer += slot.html;
-          slot.status = TOKEN_STATUS.WRITTEN;
-          slot.html = null; // GC
-        }
-      } else {
-        slot.status satisfies never;
-      }
-    }
-    if (buffer.length > 0) {
-      write(buffer);
-      onRoot(i - 1); // wake all roots up to the last one we wrote
-    }
-    next = i;
-  };
+  const queue: RenderedTokenQueue = new RenderedTokenQueue();
 
   const rootPromises: Promise<unknown>[] = [];
 
@@ -77,7 +37,6 @@ export async function writeBody(
       status: TOKEN_STATUS.PENDING,
       html: null,
     };
-    renderedTokens.push(rendered);
     switch (token.type) {
       case TOKEN.CONTAINER_OPEN:
         rendered.status = TOKEN_STATUS.RENDERED;
@@ -107,18 +66,59 @@ export async function writeBody(
       default:
         token satisfies never;
     }
+    queue.add(rendered);
   });
 
-  writeRenderedTokens(); // render any synchronous elements right away
+  writeRenderedTokens(); // render any synchronous control elements right away
+
+  function writeRenderedTokens() {
+    let buffer = ''
+    let foundRoot = false;
+    while(queue.hasNext()) {
+      let [i, renderedToken] = queue.current()
+      if (renderedToken.status === TOKEN_STATUS.PENDING) {
+        // have to go in order. we're blocked until the next one is ready
+        break;
+      } else {
+        if (renderedToken.status === TOKEN_STATUS.WRITTEN) {
+          // this shouldn't happen. runtime invariant.
+          console.error("[renderBody] elements rendering out of order!");
+        } else if (renderedToken.status === TOKEN_STATUS.FAILED_RENDERING) {
+          // nothing to render. just keep moving
+        } else if (renderedToken.status === TOKEN_STATUS.RENDERED) {
+          // got one!
+          if (renderedToken.token.type === TOKEN.THE_FOLD) {
+            onTheFold(i); // bootstrap the client
+            renderedToken.status = TOKEN_STATUS.WRITTEN;
+          }
+          if (renderedToken.html) {
+            buffer += renderedToken.html;
+            renderedToken.status = TOKEN_STATUS.WRITTEN;
+            renderedToken.html = null; // GC
+            if (renderedToken.token.type === TOKEN.ROOT) {
+              foundRoot = true;
+            }
+          }
+        } else {
+          renderedToken.status satisfies never;
+        }
+        queue.consume();
+      }
+    }
+    if (buffer.length > 0) {
+      write(buffer);
+      if (foundRoot) {
+        // wake all roots up to the last one we wrote
+        // (ok to overshoot; client skips non-roots)
+        onRoot(queue.lastConsumedIndex());
+      }
+    }
+  };
 
   abort.addEventListener('abort', () => {
     // if we take too long, we mark all pending roots as failed,
     // write them out, and return control to the caller
-    for (const slot of renderedTokens) {
-      if (slot.status === TOKEN_STATUS.PENDING) {
-        slot.status = TOKEN_STATUS.FAILED_RENDERING;
-      }
-    }
+    queue.abort();
     writeRenderedTokens();
   });
 
@@ -128,16 +128,42 @@ export async function writeBody(
   ]);
 }
 
-function renderContainerOpen(element: RootContainerElementType, index: number): string {
-  const { props } = element;
-  let attrs = `${PAGE_ELEMENT_TOKEN_ID_ATTR}="${index}"`;
-  if (props.id) attrs += ` id="${props.id}"`;
-  if (props.className) attrs += ` class="${props.className}"`;
-  if (props.style) attrs += ` style="${props.style}"`;
-  return `<div${attrs}>\n`;
-}
 
-function renderContainerClose(): string {
-  return `</div>\n`;
-}
+class RenderedTokenQueue {
+  private index: number;
+  private array: Array<RenderedToken>;
 
+  constructor() {
+    this.index = 0;
+    this.array = [];
+  }
+
+  add(t: RenderedToken) {
+    this.array.push(t);
+  }
+
+  current(): [number, RenderedToken] {
+    return [this.index, this.array[this.index]!];
+  }
+
+  hasNext() {
+    return this.index < this.array.length;
+  }
+
+  consume() {
+    this.index++;
+  }
+
+  lastConsumedIndex() {
+    return this.index - 1;
+  }
+
+  abort() {
+    for (let i = this.index; i < this.array.length; i++) {
+      const t = this.array[i]!;
+      if (t.status === TOKEN_STATUS.PENDING) {
+        t.status = TOKEN_STATUS.FAILED_RENDERING;
+      }
+    }
+  }
+}

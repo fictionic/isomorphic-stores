@@ -3,7 +3,7 @@ export interface PipeSchema {
   fns: Record<string, unknown[]>;
 }
 
-interface PipeReaderImpl<Schema extends PipeSchema> {
+export interface PipeReaderImpl<Schema extends PipeSchema> {
   data: Schema['data'];
   fns: {
     pending: { [K in keyof Schema['fns']]?: Array<Schema['fns'][K]> };
