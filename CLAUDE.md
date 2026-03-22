@@ -3,7 +3,11 @@
 
 **Sluice** is a streaming SSR framework, and **isomorphic-stores** is its state management layer — a framework-agnostic adapter system for plugging Zustand, Redux, etc. into Sluice's SSR model. They live in one repo as a single package (`sluice`).
 
-**Runtime strategy**: Sluice is not tied to Bun. Bun is used as the current dev runtime, but the framework will eventually use Vite for the dev server and support Node/Deno as production runtimes. Framework code should avoid Bun-specific APIs; Bun-specific code (like `bunBundler.ts`) is temporary and will be replaced.
+**Architecture**: Sluice owns the server and the bundler. The server targets Node's standard HTTP APIs (works on Bun/Deno via Node compat). The bundler is Vite. Both are theoretically pluggable via adapters later, but there is no formal adapter system now — `BundleResult` (`bundle.ts`) is the clean boundary for the bundler, and standard `Request`/`Response` is the boundary for the server. `bunBundler.ts` is temporary and will be removed. `viteBundler.ts` is the Vite-based bundler.
+
+**CLI**: `sluice dev` starts a Vite dev server with HMR composed with sluice's SSR handler. `sluice build` writes production bundles to disk + `manifest.json`. The user does not own the server file — sluice orchestrates HTTP serving, and the user provides configuration (routes, API endpoints, etc.) via `sluice.config.ts`.
+
+**Dev runtime**: Bun is used for running/building/installing during development, but framework code must avoid Bun-specific APIs.
 
 The core idea: stores are created server-side before render, async data is declared via `waitFor`, and Sluice's `Root` component blocks rendering until the store is ready. Client-side components can also create stores independently via `useCreateClientStore`.
 
@@ -16,7 +20,8 @@ src/
 ├── sluice/              # SSR framework
 │   ├── Page.ts          # Page interface (handleRoute, getElements, getTitle, getStyles)
 │   ├── bundle.ts        # bundler-agnostic types (RouteAssets, BundleManifest, BundleResult)
-│   ├── bunBundler.ts    # Bun-specific bundler; produces BundleResult with per-route splitting
+│   ├── bunBundler.ts    # Bun-specific bundler (temporary); produces BundleResult with per-route splitting
+│   ├── viteBundler.ts   # Vite-based bundler; same BundleResult contract, uses vite.build() with Rolldown
 │   ├── constants.ts     # DOM attribute names (PAGE_ROOT_ELEMENT_ATTR, etc.)
 │   ├── core/
 │   │   ├── RequestContext.ts   # isomorphic request context (route params, cookies); RLS-backed
@@ -199,9 +204,12 @@ Run with `bun src/demo/server.tsx`. Routes are defined in `demo/routes.ts` as st
 - Add a demo of `nativeStore` access in `DemoPage`: a component that reads state imperatively via `instance.nativeStore.getState()` on button click
 
 #### Notes for the future
-- **Vite migration**: Replace `bunBundler.ts` (Bun.build) with a Vite plugin. Vite will serve as the dev server runtime (replacing Bun.serve) and provide HMR and CSS integration. The bundler-agnostic boundary is already in place: `bundle.ts` defines the `BundleResult` contract (manifest + bundle contents) that any bundler implementation must produce. Production builds will target Node and Deno as runtimes.
+- **`sluice dev`**: Vite dev server with HMR, composed with sluice's SSR handler. Replaces the current `Bun.serve()` setup in `demo/server.tsx`. User provides `sluice.config.ts` with routes and API endpoints; sluice handles HTTP serving.
+- **`sluice build`**: Production build — writes bundles to disk + `manifest.json`. The production server reads the manifest and serves bundles from disk (or delegates to a CDN via a `cdnPrefix` config).
+- **`sluice start`** (or similar): Production server — reads pre-built manifest, serves SSR + static bundles via Node HTTP. Three bundle serving modes: (1) dev — in-memory via Vite, (2) local prod — from disk, (3) CDN — manifest only, bundles served externally.
+- **`sluice.config.ts`**: Routes, API endpoints, urlPrefix, build output dir, cdnPrefix. Replaces the user-owned server file. The current `demo/server.tsx` pattern (user calls `createSluiceServer` + `Bun.serve`) becomes an internal implementation detail.
+- **API routes**: Support non-SSR route handlers (JSON endpoints, redirects) in the routes config so the full app can be expressed without a custom server.
 - **ALS requirement**: Sluice currently requires `AsyncLocalStorage` (via `requestLocal.ts`). This limits deployment to Node, Bun, and Deno. Edge runtimes (Cloudflare Workers, Vercel Edge) don't support ALS. If edge support is needed, RLS would need an alternative implementation.
-- **Package splitting**: The Vite plugin should eventually be a separate package (`vite-plugin-sluice`) so that not every sluice user needs Vite as a dependency. For now everything lives in one package.
 
 ---
 

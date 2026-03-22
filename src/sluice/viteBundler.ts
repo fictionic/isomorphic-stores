@@ -13,8 +13,9 @@ export async function bundle(routesModulePath: string): Promise<BundleResult> {
   const routes: SluiceRoutes = (await import(routesModulePath)).default;
   const routesDir = path.dirname(routesModulePath);
 
+  const pageRoutes = Object.entries(routes).filter(([, r]) => 'page' in r) as [string, { path: string; page: string }][];
   const input: Record<string, string> = {};
-  await Promise.all(Object.entries(routes).map(async ([routeName, { page, path: routePath }]) => {
+  await Promise.all(pageRoutes.map(async ([routeName, { page, path: routePath }]) => {
     const entrypointPath = path.resolve(BUNDLES_DIR, `route-${routeName}.js`);
     await writeFile(entrypointPath, makeEntrypoint(page, routePath, routesDir));
     input[routeName] = entrypointPath;

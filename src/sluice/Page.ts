@@ -8,9 +8,17 @@ export interface HandleRouteResult {
 
 type MaybePromise<T> = T | Promise<T>;
 
-export interface Page {
+export interface BaseResponse {
   handleRoute(): MaybePromise<HandleRouteResult>;
+}
+
+export interface Page extends BaseResponse {
   getTitle(): string;
   getHeadStylesheets(): Stylesheet[];
   getElements(): React.ReactElement[];
+}
+
+export interface Endpoint extends BaseResponse {
+  getContentType(): string;
+  getResponseData(): MaybePromise<string | ArrayBuffer | ReadableStream>;
 }

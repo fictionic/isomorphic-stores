@@ -9,8 +9,9 @@ export async function bundle(routesModulePath: string): Promise<BundleResult> {
   await mkdir(BUNDLES_DIR, { recursive: true });
   const routes: SluiceRoutes = (await import(routesModulePath)).default;
   const routesDir = path.dirname(routesModulePath);
+  const pageRoutes = Object.entries(routes).filter(([, r]) => 'page' in r) as [string, { path: string; page: string }][];
   const routeNameByEntrypointPath = new Map<string,string>();
-  const entrypoints = await Promise.all(Object.entries(routes).map(async ([routeName, { page, path: routePath }]) => {
+  const entrypoints = await Promise.all(pageRoutes.map(async ([routeName, { page, path: routePath }]) => {
     const entrypointPath = `${BUNDLES_DIR}/route-${routeName}.js`;
     routeNameByEntrypointPath.set(entrypointPath, routeName);
     await Bun.write(entrypointPath, makeEntrypoint(page, routePath, routesDir));
