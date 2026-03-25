@@ -3,8 +3,10 @@ import { RequestContext } from '../core/RequestContext';
 import { ResponseCookies } from './ResponseCookies';
 import type {ParamData} from 'path-to-regexp';
 import {Fetch} from '../core/fetch/Fetch';
-import type {EndpointInit} from '../Endpoint';
+import type {EndpointDefinition} from '../Endpoint';
 import {ResponderConfig} from '../core/ResponderConfig';
+import {createHandlerChain} from '../core/chain';
+import type {MiddlewareDefinition} from '../Middleware';
 
 interface Options {
   urlPrefix?: string;
@@ -12,16 +14,18 @@ interface Options {
 
 export async function handleEndpoint(
   req: Request,
-  init: EndpointInit,
+  def: EndpointDefinition,
   routeParams: ParamData,
+  globalMiddleware: MiddlewareDefinition[],
   { urlPrefix }: Options,
 ): Promise<Response> {
   const response = await startRequest(async () => {
     RequestContext.serverInit(req, routeParams);
     const cookies = new ResponseCookies();
     Fetch.init({ urlPrefix: urlPrefix ?? null });
-    const c = new ResponderConfig();
-    const endpoint = init({ getConfig: c.getValue });
+    const config = new ResponderConfig();
+    const fns = { getConfig: config.getValue };
+    const endpoint = createHandlerChain('endpoint', def, globalMiddleware, config, fns);
     let statusCode: number;
     try {
       const { status } = await endpoint.handleRoute();

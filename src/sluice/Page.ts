@@ -1,23 +1,33 @@
 import type {ReactElement} from 'react';
-import {defineResponder, type BaseChainedMethods, type BaseHookMethods, type ResponderFns} from './Responder';
+import {defineRouteHandler, type RouteHandler, type RouteHandlerDefinition, type RouteHandlerInit, type StandardizedRouteHandler} from './Responder';
 
 export type Stylesheet = { href: string } | { text: string; type?: string; media?: string };
 
-export interface PageChainedMethods {
+export interface PageOptionalMethods {
   getTitle(): string;
   getHeadStylesheets(): Stylesheet[];
-  getElements(): ReactElement[];
+  // TODO: getScripts, getBodyClasses, getMetaTags, getLinkTags,
 }
 
-export interface PageMethods extends Partial<BaseHookMethods>, BaseChainedMethods, PageChainedMethods {};
+export interface PageRequiredMethods {
+  getElements(): ReactElement[];
+};
 
-export type PageInit = (opts: ResponderFns) => PageMethods;
+export type Page = RouteHandler<'page', PageOptionalMethods, PageRequiredMethods>;
 
-export interface PageDefinition {
-  type: 'page';
-  init: PageInit;
+export type PageInit = RouteHandlerInit<'page', Page>;
+
+export type PageDefinition = RouteHandlerDefinition<'page', PageOptionalMethods, PageRequiredMethods>;
+
+export type StandardizedPage = StandardizedRouteHandler<PageOptionalMethods, PageRequiredMethods>;
+
+const PAGE_REQUIRED_METHOD_NAMES: (keyof PageRequiredMethods)[] = ['getElements'];
+
+const PAGE_OPTIONAL_METHOD_DEFAULTS: PageOptionalMethods = {
+  getTitle: () => '',
+  getHeadStylesheets: () => [],
 };
 
 export function definePage(init: PageInit): PageDefinition {
-  return defineResponder('page', init);
-};
+  return defineRouteHandler('page', init, PAGE_OPTIONAL_METHOD_DEFAULTS, PAGE_REQUIRED_METHOD_NAMES);
+}

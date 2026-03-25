@@ -3,7 +3,7 @@ import {ensureArray} from "../util/array";
 import type {MiddlewareDefinition} from "../Middleware";
 
 export type SiteConfig = {
-  middleware?: MiddlewareDefinition<any, any>[];
+  middleware?: MiddlewareDefinition[];
   routes: Routes;
 };
 

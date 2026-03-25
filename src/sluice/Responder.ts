@@ -1,34 +1,119 @@
+// TODO: rename to RouteHandler.ts?
 import type {BaseConfig} from "./core/ResponderConfig";
-
-export interface HandleRouteResult {
-  status: number;
-};
+import type {MiddlewareDefinition, Scope} from "./Middleware";
 
 export type MaybePromise<T> = T | Promise<T>;
 
-export type ResponderType = 'page' | 'endpoint';
+export type RouteHandlerType = 'page' | 'endpoint';
 
-export interface BaseChainedMethods {
+export interface HandleRouteResult {
+  status: number;
+  redirectLocation?: string;
+  hasDocument?: boolean;
+}
+// TODO proxyRoute: string
+
+export interface SharedRequiredMethods {
   handleRoute(): MaybePromise<HandleRouteResult>;
-}
+};
 
-export interface BaseHookMethods {
-  setConfigValues<ConfigValues>(): Partial<ConfigValues>;
-}
+export interface SharedOptionalMethods {
+  getHeaders(): Headers[];
+};
 
+export interface SharedMethods extends SharedRequiredMethods, Partial<SharedOptionalMethods> {};
+
+export interface SharedHooks {
+  setConfigValues(): Partial<BaseConfig>;
+};
+
+export interface MiddlewareDepender<S extends Scope> {
+  middleware: MiddlewareDefinition<S | 'all'>[];
+};
+
+export interface BaseResponder<S extends Scope> extends MiddlewareDepender<S>, SharedHooks {};
+
+// TODO rename?
 export interface ResponderFns {
-  getConfig<ConfigValues extends BaseConfig>(key: keyof ConfigValues): ConfigValues[typeof key];
+  getConfig<C extends BaseConfig>(key: keyof C): C[typeof key];
+  // TODO: getRequest, isomorphic request object transported via Pipe
+  // more ergonomic than getCurrentRequestContext, which would be overkill
+  // for route handlers since they're directly exposed to the request
 }
 
-export type ResponderInit<Methods> = (fns: ResponderFns) => Methods;
+export type RouteHandler<
+  T extends RouteHandlerType,
+  OptionalMethods extends {},
+  RequiredMethods extends {},
+> = Partial<BaseResponder<T>> &
+  SharedMethods &
+  Partial<OptionalMethods> &
+  RequiredMethods;
 
-export interface ResponderDefinition<R extends ResponderType, Factory> {
-  type: R;
-  init: ResponderInit<Factory>;
+type RouteHandlerFor<T extends RouteHandlerType> = RouteHandler<T, {}, {}>;
+
+export type RouteHandlerInit<T extends RouteHandlerType, H extends RouteHandlerFor<T>> = (fns: ResponderFns) => H;
+
+export interface RouteHandlerDefinition<
+  T extends RouteHandlerType,
+  OptionalMethods extends {},
+  RequiredMethods extends {},
+> {
+  type: T;
+  init: RouteHandlerInit<T, RouteHandler<T, OptionalMethods, RequiredMethods>>;
+  standardize: (handler: RouteHandler<RouteHandlerType, OptionalMethods, RequiredMethods>) => StandardizedRouteHandler<OptionalMethods, RequiredMethods>;
+  // ^ not paramaterizing handler on T because then it would become contravariant on T which breaks the call to createHandlerChain
 }
-export function defineResponder<R extends ResponderType, Methods>(type: R, init: ResponderInit<Methods>): ResponderDefinition<R, Methods> {
+
+export function defineRouteHandler<
+  T extends RouteHandlerType,
+  OptionalMethods extends {},
+  RequiredMethods extends {},
+>(
+  type: T,
+  init: RouteHandlerInit<T, RouteHandler<T, OptionalMethods, RequiredMethods>>,
+  defaults: OptionalMethods,
+  requiredNames: (keyof RequiredMethods)[],
+): RouteHandlerDefinition<T, OptionalMethods, RequiredMethods> {
+  const standardize = makeStandardizer(defaults, requiredNames);
   return {
     type,
     init,
+    standardize,
   };
+}
+
+function makeStandardizer<OptionalMethods extends {}, RequiredMethods extends {}>(
+  defaults: OptionalMethods,
+  requiredNames: (keyof RequiredMethods)[],
+) {
+  return (handler: RouteHandler<RouteHandlerType, OptionalMethods, RequiredMethods>) => {
+    const methodNames = [
+      ...Object.keys(SHARED_OPTIONAL_METHOD_DEFAULTS),
+      ...SHARED_REQUIRED_METHOD_NAMES,
+      ...Object.keys(defaults),
+      ...requiredNames,
+    ];
+    return {
+      ...SHARED_OPTIONAL_METHOD_DEFAULTS,
+      ...defaults,
+      ...Object.assign(
+        {},
+        ...Object.entries(handler)
+          .filter(([ name ]) => methodNames.includes(name))
+          .map(([ name, method ]) => ({ [name]: method }))
+      ),
+    } as StandardizedRouteHandler<OptionalMethods, RequiredMethods>;
+  }
+}
+
+const SHARED_REQUIRED_METHOD_NAMES: (keyof SharedRequiredMethods)[] = ['handleRoute'];
+
+const SHARED_OPTIONAL_METHOD_DEFAULTS: SharedOptionalMethods = {
+  getHeaders: () => [],
 };
+
+export type StandardizedRouteHandler<
+  OptionalMethods extends {},
+  RequiredMethods extends {},
+> = SharedOptionalMethods & SharedRequiredMethods & OptionalMethods & RequiredMethods;

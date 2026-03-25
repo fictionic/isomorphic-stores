@@ -1,60 +1,59 @@
-import type {BaseChainedMethods, BaseHookMethods, ResponderFns, ResponderType} from "./Responder";
-import type {EndpointChainedMethods} from "./Endpoint";
-import type {PageChainedMethods} from "./Page";
+import type {SharedMethods, BaseResponder, ResponderFns, RouteHandlerType} from "./Responder";
 import type {BaseConfig} from "./core/ResponderConfig";
+import type {PageOptionalMethods, PageRequiredMethods} from "./Page";
+import type {EndpointRequiredMethods} from "./Endpoint";
 
-type ChainedResponseMethods = {
-  page: PageChainedMethods;
-  endpoint: EndpointChainedMethods;
+type HandlerMethodsMap = {
+  page: PageOptionalMethods & PageRequiredMethods;
+  endpoint: EndpointRequiredMethods;
+  all: {};
 };
 
-type ChainedResponseMethodsFor<R> =
-  R extends ResponderType ? ChainedResponseMethods[R] : {};
+type HandlerMethodsFor<S extends Scope> = HandlerMethodsMap[S];
 
-export type BaseMiddleware<R, ConfigValues = BaseConfig> = &
-  Partial<
-    { addConfigValues(): ConfigValues } &
-    MakeChainedMethods<BaseChainedMethods & ChainedResponseMethodsFor<R>> &
-    BaseHookMethods
-  >;
+type AllHandlerMethodKeys = {
+  [S in keyof HandlerMethodsMap]: keyof HandlerMethodsMap[S]
+}[keyof HandlerMethodsMap];
 
-type Scope = ResponderType | 'all';
-
-type MiddlewareInit<R, C extends BaseConfig> = (fns: ResponderFns) => BaseMiddleware<R, C>;
-
-export interface MiddlewareDefinition<R, C extends BaseConfig> {
-  type: 'middleware';
-  scope: Scope;
-  init: MiddlewareInit<R, C>;
+type ForbiddenMethodsMap = {
+  [S in Scope]: {
+    [K in AllHandlerMethodKeys as K extends keyof HandlerMethodsMap[S] ? never : K]?: never
+  }
 };
 
-type ResolveScope<S extends Scope> = S extends 'all' ? ResponderType : S;
+export type Scope = RouteHandlerType | 'all';
 
-export function defineMiddleware<
-  S extends Scope,
-  C extends BaseConfig,
->(scope: S, init: MiddlewareInit<ResolveScope<S>, C>): MiddlewareDefinition<ResolveScope<S>, C> {
-  return {
-    type: 'middleware',
-    scope,
-    init,
-  };
+interface MiddlewareHooks {
+  addConfigValues(): Partial<BaseConfig>;
 }
 
-export type NextFn<T extends keyof AllChainedMethods> = AllChainedMethods[T];
+export type Middleware<S extends Scope> =
+  ForbiddenMethodsMap[S] &
+  Partial<
+    BaseResponder<S> &
+    MiddlewareHooks &
+    Chained<SharedMethods> &
+    Chained<HandlerMethodsFor<S>>
+  >;
 
-// helpers
+type MiddlewareInit<S extends Scope> = (fns: ResponderFns) => Middleware<S>;
 
-type UnionToIntersection<U> =
-  (U extends any ? (x: U) => void : never) extends (x: infer I) => void ? I : never;
+export interface MiddlewareDefinition<S extends Scope = Scope> {
+  type: 'middleware';
+  scope: S;
+  init: MiddlewareInit<S>;
+}
 
-type AllChainedMethods = BaseChainedMethods & UnionToIntersection<ChainedResponseMethods[keyof ChainedResponseMethods]>;
+export function defineMiddleware<S extends Scope>(
+  scope: S,
+  init: MiddlewareInit<S>,
+): MiddlewareDefinition<S> {
+  return { type: 'middleware', scope, init };
+}
 
-type MakeChainedFunc<F> = F extends () => infer R
-  ? (next: () => R) => R
-  : never;
-
-type MakeChainedMethods<T> = {
-  [K in keyof T]?: T[K] extends () => any ? MakeChainedFunc<T[K]> : never;
+type Chained<T> = {
+  [K in keyof T]: T[K] extends (...args: any[]) => infer R
+    ? (next: () => R) => R
+    : T[K];
 };
 

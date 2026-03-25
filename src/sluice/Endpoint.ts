@@ -1,19 +1,18 @@
-import {defineResponder, type BaseChainedMethods, type BaseHookMethods, type MaybePromise, type ResponderFns} from "./Responder";
+import {defineRouteHandler, type MaybePromise, type RouteHandler, type RouteHandlerDefinition, type RouteHandlerInit} from "./Responder";
 
-export interface EndpointChainedMethods {
+export interface EndpointRequiredMethods {
   getContentType(): string;
   getResponseData(): MaybePromise<string | ArrayBuffer | ReadableStream>;
-}
-
-export interface EndpointMethods extends Partial<BaseHookMethods>, BaseChainedMethods, EndpointChainedMethods {};
-
-export type EndpointInit = (opts: ResponderFns) => EndpointMethods;
-
-export interface EndpointDefinition {
-  type: 'endpoint';
-  init: EndpointInit;
 };
+
+export type Endpoint = RouteHandler<'endpoint', {}, EndpointRequiredMethods>;
+
+export type EndpointInit = RouteHandlerInit<'endpoint', Endpoint>;
+
+export type EndpointDefinition = RouteHandlerDefinition<'endpoint', {}, EndpointRequiredMethods>;
+
+const ENDPOINT_REQUIRED_METHOD_NAMES: (keyof EndpointRequiredMethods)[] = ['getContentType', 'getResponseData'];
 
 export function defineEndpoint(init: EndpointInit): EndpointDefinition {
-  return defineResponder('endpoint', init);
-};
+  return defineRouteHandler('endpoint', init, {}, ENDPOINT_REQUIRED_METHOD_NAMES);
+}

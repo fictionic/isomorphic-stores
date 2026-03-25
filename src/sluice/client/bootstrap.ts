@@ -9,10 +9,12 @@ import {RequestContext} from '../core/RequestContext';
 import {match} from 'path-to-regexp';
 import type {PageDefinition} from '../Page';
 import {ResponderConfig} from '../core/ResponderConfig';
+import {createHandlerChain} from '../core/chain';
+import type {MiddlewareDefinition} from '../Middleware';
 
 global.CLIENT_READY_DFD = Promise.withResolvers<void>();
 
-export async function bootstrap(def: PageDefinition, path: string, middleware: string[]): Promise<void> {
+export async function bootstrap(def: PageDefinition, path: string, middleware: MiddlewareDefinition[]): Promise<void> {
   const routeResult = match(path)(location.pathname);
   if (!routeResult) {
     console.error("no route!");
@@ -24,9 +26,10 @@ export async function bootstrap(def: PageDefinition, path: string, middleware: s
   const readablePipe = SluicePipe.reader();
   const fetchCache = (readablePipe.readValue(FETCH_CACHE_KEY) ?? {});
   Fetch.getCache().client().rehydrate(fetchCache);
-  const c = new ResponderConfig();
-  const page = def.init({ getConfig: c.getValue });
-  page.handleRoute();
+  const config = new ResponderConfig();
+  const fns = { getConfig: config.getValue };
+  const page = createHandlerChain('page', def, middleware, config, fns)
+  await page.handleRoute();
 
   const tokens = tokenizeElements(page.getElements());
 

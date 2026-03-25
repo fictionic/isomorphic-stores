@@ -5,8 +5,10 @@ import {makeStreamer} from './stream';
 import {ResponseCookies} from './ResponseCookies';
 import type {ParamData} from 'path-to-regexp';
 import type {RouteAssets} from '../bundle';
-import type {PageInit} from '../Page';
+import type {PageDefinition} from '../Page';
 import {ResponderConfig} from '../core/ResponderConfig';
+import {createHandlerChain} from '../core/chain';
+import type {MiddlewareDefinition} from '../Middleware';
 
 const RENDER_TIMEOUT_MS = 20_000;
 
@@ -18,8 +20,9 @@ interface Options {
 
 export async function handlePage(
   req: Request,
-  init: PageInit,
+  def: PageDefinition,
   routeParams: ParamData,
+  globalMiddleware: MiddlewareDefinition[],
   {
     routeAssets,
     renderTimeout = RENDER_TIMEOUT_MS,
@@ -31,8 +34,9 @@ export async function handlePage(
     RequestContext.serverInit(req, routeParams);
     const cookies = new ResponseCookies();
     Fetch.init({ urlPrefix: urlPrefix ?? null });
-    const c = new ResponderConfig();
-    const page = init({ getConfig: c.getValue });
+    const config = new ResponderConfig();
+    const fns = { getConfig: config.getValue };
+    const page = createHandlerChain('page', def, globalMiddleware, config, fns);
     let statusCode: number;
     try {
       const { status } = await page.handleRoute();

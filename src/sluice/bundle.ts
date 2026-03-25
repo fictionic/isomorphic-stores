@@ -1,4 +1,4 @@
-import type {RouteHandler} from "./Handler";
+import type {RouteHandlerDefinition, RouteHandlerType} from "./Responder";
 
 export type RouteAssets = {
   scripts: string[];
@@ -15,6 +15,6 @@ export type BundleResult = {
     [bundlePath: string]: string;
   };
   handlersByRoute: {
-    [routeName: string]: RouteHandler;
+    [routeName: string]: RouteHandlerDefinition<RouteHandlerType, any, any>;
   };
 };

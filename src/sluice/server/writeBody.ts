@@ -3,7 +3,7 @@ import { scheduleRender } from '../core/components/Root';
 import {TOKEN, tokenizeElements, type PageElementToken} from '../core/elementTokenizer';
 import {renderContainerOpen, renderContainerClose} from '../core/components/RootContainer';
 import {PAGE_ELEMENT_TOKEN_ID_ATTR, PAGE_ROOT_ELEMENT_ATTR} from '../constants';
-import type {PageMethods} from '../Page';
+import type {StandardizedPage} from '../Page';
 
 const TOKEN_STATUS = {
   PENDING: 'PENDING',
@@ -19,7 +19,7 @@ type RenderedToken = {
 };
 
 export async function writeBody(
-  page: PageMethods,
+  page: StandardizedPage,
   write: (html: string) => void,
   onRoot: (index: number) => void,
   onTheFold: (index: number) => void,

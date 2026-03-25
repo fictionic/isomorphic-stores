@@ -2,7 +2,7 @@ import path from 'node:path';
 import { unlink, mkdir } from 'node:fs/promises';
 import type {BundleManifest, BundleResult} from './bundle';
 import type {SiteConfig} from './server/router';
-import type {RouteHandler} from './Handler';
+import type {RouteHandlerDefinition} from './Responder';
 
 const BUNDLES_DIR = 'bundles';
 
@@ -11,11 +11,11 @@ export async function bundle(siteConfigModulePath: string): Promise<BundleResult
   const site: SiteConfig = (await import(siteConfigModulePath)).default;
   const rootDir = path.dirname(siteConfigModulePath);
 
-  const handlers: Record<string, RouteHandler> = {};
+  const handlers: Record<string, RouteHandlerDefinition<any, any, any>> = {};
   const routeNameByEntrypointPath = new Map<string, string>();
   const entrypoints: string[] = [];
   await Promise.all(Object.entries(site.routes).map(async ([routeName, routeConfig]) => {
-    const handler: RouteHandler = (await import(path.resolve(rootDir, routeConfig.handler))).default;
+    const handler: RouteHandlerDefinition<any, any, any> = (await import(path.resolve(rootDir, routeConfig.handler))).default;
     handlers[routeName] = handler;
     if (handler.type === 'page') {
       const entrypointPath = `${BUNDLES_DIR}/route-${routeName}.js`;

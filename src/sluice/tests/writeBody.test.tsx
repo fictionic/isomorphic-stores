@@ -3,7 +3,7 @@ import { test, expect, describe, vi } from 'vitest';
 import { Root, makeRootComponent } from '@/sluice/core/components/Root';
 import RootContainer from '@/sluice/core/components/RootContainer';
 import TheFold from '@/sluice/core/components/TheFold';
-import type { PageMethods } from '@/sluice/Page';
+import type { StandardizedPage } from '@/sluice/Page';
 
 vi.mock('@/sluice/core/components/RootContainer', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/sluice/core/components/RootContainer')>();
@@ -17,16 +17,17 @@ vi.mock('@/sluice/core/components/RootContainer', async (importOriginal) => {
 // import handleBody after mocks are set up
 const { writeBody } = await import('@/sluice/server/writeBody');
 
-function simplePage(elements: React.ReactElement[]): PageMethods {
+function simplePage(elements: React.ReactElement[]): StandardizedPage {
   return {
     handleRoute() { return { status: 200 } },
     getElements() { return elements; },
     getTitle() { return 'Test'; },
     getHeadStylesheets() { return []; },
+    getHeaders() { return []; },
   };
 }
 
-function run(page: PageMethods, opts?: { timeoutMs?: number }) {
+function run(page: StandardizedPage, opts?: { timeoutMs?: number }) {
   const chunks: string[] = [];
   const write = vi.fn((html: string) => chunks.push(html));
   const rootCalls: number[] = [];

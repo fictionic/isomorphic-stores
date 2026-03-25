@@ -11,11 +11,19 @@ export class ResponderConfig {
     RLS().current = this;
   }
 
-  setValues(config: BaseConfig) {
+  addValues(config: BaseConfig) {
     this.config = {
       ...this.config,
-      config,
+      ...config,
     };
+  }
+
+  setValues(config: BaseConfig) {
+    const unknownKeys = Object.keys(config).filter(k => !(k in this.config));
+    if (unknownKeys.length > 0) {
+      throw new Error(`Refusing to set uninitiated config key ${unknownKeys[0]}`);
+    }
+    this.addValues(config);
   }
 
   getValue<C extends BaseConfig>(key: keyof C) {

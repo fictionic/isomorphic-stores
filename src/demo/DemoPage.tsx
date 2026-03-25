@@ -8,6 +8,7 @@ import { Prefs } from './components/Prefs';
 import { Activity } from './components/Activity';
 import { Broadcast } from './components/Broadcast';
 import { LatencyControls } from './components/LatencyControls';
+import AuthMiddleware from './AuthMiddleware';
 
 export default definePage(() => {
   // TODO: export these store instance types
@@ -17,6 +18,8 @@ export default definePage(() => {
   let broadcast!: ReturnType<typeof ProfileStore.createStore>;
 
   return {
+    middleware: [AuthMiddleware],
+
     getTitle() {
       return 'isomorphic-stores demo';
     },

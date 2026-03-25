@@ -1,4 +1,6 @@
 import type {BundleResult} from "../bundle";
+import type {PageDefinition} from "../Page";
+import type {EndpointDefinition} from "../Endpoint";
 import {handlePage} from "./handlePage";
 import {createRouter, type SiteConfig} from "./router";
 import {handleEndpoint} from './handleEndpoint';
@@ -39,14 +41,14 @@ export async function createSluiceServer(config: SluiceServerConfig): Promise<Sl
       switch (handler.type) {
         case 'page': {
           const { routeName, params: routeParams } = result;
-          return handlePage(req, handler.init, routeParams, {
+          return handlePage(req, handler as PageDefinition, routeParams, site.middleware ?? [], {
             routeAssets: config.bundleResult.manifest[routeName]!,
             urlPrefix: config.urlPrefix,
           });
         }
         case 'endpoint': {
           const { params: routeParams } = result;
-          return handleEndpoint(req, handler.init, routeParams, {
+          return handleEndpoint(req, handler as EndpointDefinition, routeParams, {
             urlPrefix: config.urlPrefix,
           });
         }
