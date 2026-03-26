@@ -19,7 +19,7 @@ const { writeBody } = await import('@/sluice/server/writeBody');
 
 function simplePage(elements: React.ReactElement[]): StandardizedPage {
   return {
-    handleRoute() { return { status: 200 } },
+    getRouteDirective() { return { status: 200 } },
     getElements() { return elements; },
     getTitle() { return 'Test'; },
     getHeadStylesheets() { return []; },

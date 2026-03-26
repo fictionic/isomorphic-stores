@@ -3,7 +3,7 @@ import { delay } from '../delay';
 import { cookieLatency } from './cookieLatency';
 
 export default defineEndpoint(() => ({
-  async handleRoute() {
+  async getRouteDirective() {
     await delay(cookieLatency('activity', 1500));
     return { status: 200 };
   },

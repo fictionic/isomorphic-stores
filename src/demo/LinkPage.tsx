@@ -14,7 +14,7 @@ export default definePage(() => ({
     ` }];
   },
 
-  handleRoute() {
+  getRouteDirective() {
     return { status: 200 };
   },
 

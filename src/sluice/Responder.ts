@@ -6,15 +6,16 @@ export type MaybePromise<T> = T | Promise<T>;
 
 export type RouteHandlerType = 'page' | 'endpoint';
 
-export interface HandleRouteResult {
+export type RouteDirective = {
   status: number;
   redirectLocation?: string;
   hasDocument?: boolean;
-}
-// TODO proxyRoute: string
+} /* TODO | {
+  proxyRoute: string;
+}; */
 
 export interface SharedRequiredMethods {
-  handleRoute(): MaybePromise<HandleRouteResult>;
+  getRouteDirective(): MaybePromise<RouteDirective>;
 };
 
 export interface SharedOptionalMethods {
@@ -107,7 +108,7 @@ function makeStandardizer<OptionalMethods extends {}, RequiredMethods extends {}
   }
 }
 
-const SHARED_REQUIRED_METHOD_NAMES: (keyof SharedRequiredMethods)[] = ['handleRoute'];
+const SHARED_REQUIRED_METHOD_NAMES: (keyof SharedRequiredMethods)[] = ['getRouteDirective'];
 
 const SHARED_OPTIONAL_METHOD_DEFAULTS: SharedOptionalMethods = {
   getHeaders: () => [],

@@ -186,12 +186,12 @@ Run with `bun src/demo/server.tsx`. Routes are defined in `demo/routes.ts` as st
 - Client-side transitions (SPA navigation) — `navigateTo()` function that lazy-loads the target route's page entry, unmounts the current page, and mounts the new one without a full page reload
 - API to allow page authors to transport arbitrary server-side data down to the client
 - expose a `getRouteParams()` helper function so Pages can access route params without importing `RequestContext` directly
-- middleware
 - add the ability to register a callback on Root mount for a particular Root
 - fetch: support for opting into response replaying of non-GET requests
 - fetch: binary (non-text) responses should bypass the cache rather than being corrupted by `response.text()`
 - make Roots show up properly in react devtools (right now they're Anonymous)
 - `failArrival`: when the stream ends, send a pipe call that tells the client to reject any still-pending `rootDomNodeDfds`. Without this, timed-out roots (server wrote `hydrateRootsUpTo` but the DOM node was never rendered) leave the client hanging — `CLIENT_READY_DFD` never resolves. The server should write this as the last thing before closing the stream in both `finish()` and the error `.catch` path in `stream.ts`.
+- filter out extraneous middleware methods when wiring up the chain, as an extra layer of safety (maybe as a method on MiddlewareDefinition?)
 
 #### isomorphic-stores
 - Add a mechanism for adapters to integrate the isomorphic-stores `StoreProvider` with a framework-native provider — e.g. so the Redux adapter can render a react-redux `<Provider store={store}>` alongside the isomorphic-stores context

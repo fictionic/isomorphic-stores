@@ -1,7 +1,7 @@
 import {defineMiddleware} from "@/sluice/Middleware";
 
 export default defineMiddleware('all', (fns) => ({
-  handleRoute: (next) => {
+  getRouteDirective: (next) => {
     console.log("authenticating...");
     return next();
   },

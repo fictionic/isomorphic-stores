@@ -1,9 +1,6 @@
 import type {BundleResult} from "../bundle";
-import type {PageDefinition} from "../Page";
-import type {EndpointDefinition} from "../Endpoint";
-import {handlePage} from "./handlePage";
 import {createRouter, type SiteConfig} from "./router";
-import {handleEndpoint} from './handleEndpoint';
+import {handleRoute} from "./handleRoute";
 
 interface SluiceServerConfig {
   siteConfigPath: string;
@@ -38,23 +35,11 @@ export async function createSluiceServer(config: SluiceServerConfig): Promise<Sl
         return Promise.resolve(new Response(null, { status: 404 }));
       }
       const handler = handlersByRoute[result.routeName]!;
-      switch (handler.type) {
-        case 'page': {
-          const { routeName, params: routeParams } = result;
-          return handlePage(req, handler as PageDefinition, routeParams, site.middleware ?? [], {
-            routeAssets: config.bundleResult.manifest[routeName]!,
-            urlPrefix: config.urlPrefix,
-          });
-        }
-        case 'endpoint': {
-          const { params: routeParams } = result;
-          return handleEndpoint(req, handler as EndpointDefinition, routeParams, {
-            urlPrefix: config.urlPrefix,
-          });
-        }
-        default:
-          throw new Error('Unknown route type'); // impossible
-      }
+      const { routeName, params: routeParams } = result;
+      return handleRoute(handler.type, req, handler, routeParams, site.middleware ?? [], {
+        routeAssets: config.bundleResult.manifest[routeName]!,
+        urlPrefix: config.urlPrefix,
+      });
     }
   };
 }

@@ -14,7 +14,7 @@ const NAMES: Record<number, string> = {
 export default defineEndpoint(() => {
   let id: number;
   return {
-    async handleRoute() {
+    async getRouteDirective() {
       const ctx = getCurrentRequestContext();
       id = Number(ctx.routeParams['id']);
       await delay(cookieLatency('users', 500));

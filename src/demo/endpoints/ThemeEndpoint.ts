@@ -6,7 +6,7 @@ import { cookieLatency } from './cookieLatency';
 export default defineEndpoint(() => {
   let userId: number;
   return {
-    async handleRoute() {
+    async getRouteDirective() {
       const ctx = getCurrentRequestContext();
       userId = Number(ctx.routeParams['userId']);
       await delay(cookieLatency('theme', 400));

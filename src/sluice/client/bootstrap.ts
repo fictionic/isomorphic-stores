@@ -29,7 +29,7 @@ export async function bootstrap(def: PageDefinition, path: string, middleware: M
   const config = new ResponderConfig();
   const fns = { getConfig: config.getValue };
   const page = createHandlerChain('page', def, middleware, config, fns)
-  await page.handleRoute();
+  await page.getRouteDirective(); // just for data fetching, for now
 
   const tokens = tokenizeElements(page.getElements());
 

@@ -1,14 +1,6 @@
-import { startRequest } from '../util/requestLocal';
-import { RequestContext } from '../core/RequestContext';
-import { Fetch } from '../core/fetch/Fetch';
 import {makeStreamer} from './stream';
-import {ResponseCookies} from './ResponseCookies';
-import type {ParamData} from 'path-to-regexp';
 import type {RouteAssets} from '../bundle';
-import type {PageDefinition} from '../Page';
-import {ResponderConfig} from '../core/ResponderConfig';
-import {createHandlerChain} from '../core/chain';
-import type {MiddlewareDefinition} from '../Middleware';
+import type {StandardizedPage} from '../Page';
 
 const RENDER_TIMEOUT_MS = 20_000;
 
@@ -19,48 +11,14 @@ interface Options {
 };
 
 export async function handlePage(
-  req: Request,
-  def: PageDefinition,
-  routeParams: ParamData,
-  globalMiddleware: MiddlewareDefinition[],
+  page: StandardizedPage,
   {
     routeAssets,
     renderTimeout = RENDER_TIMEOUT_MS,
-    urlPrefix,
   }: Options,
-): Promise<Response> {
-
-  const response = await startRequest(async () => {
-    RequestContext.serverInit(req, routeParams);
-    const cookies = new ResponseCookies();
-    Fetch.init({ urlPrefix: urlPrefix ?? null });
-    const config = new ResponderConfig();
-    const fns = { getConfig: config.getValue };
-    const page = createHandlerChain('page', def, globalMiddleware, config, fns);
-    let statusCode: number;
-    try {
-      const { status } = await page.handleRoute();
-      statusCode = status;
-    } catch (err) {
-      console.error('[sluice] error during handleRoute', err);
-      return new Response(null, {
-        status: 500,
-      });
-    }
-    const headers = new Headers();
-    headers.append('Content-Type', 'text/html; charset=utf-8');
-    cookies.consumeHeaders().forEach((value, name) => {
-      // idk why Headers has ^these args flipped...
-      headers.append(name, value);
-    });
-
-    const streamer = makeStreamer(page, { renderTimeout, routeAssets } );
-    const readable = streamer.stream();
-    return new Response(readable, {
-      status: statusCode,
-      headers,
-    });
-  });
-  return response;
+): Promise<ReadableStream> {
+  const streamer = makeStreamer(page, { renderTimeout, routeAssets } );
+  const readable = streamer.stream();
+  return readable;
 }
 

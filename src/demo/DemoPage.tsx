@@ -49,7 +49,7 @@ export default definePage(() => {
         ` }];
     },
 
-    handleRoute() {
+    getRouteDirective() {
       profile1 = ProfileStore.createStore({ userId: 1 });
       theme1 = ThemeStore.createStore({ userId: 1 });
       activity = ActivityStore.createStore({});

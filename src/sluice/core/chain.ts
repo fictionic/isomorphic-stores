@@ -5,7 +5,7 @@ import type {ResponderConfig} from "./ResponderConfig";
 export function createHandlerChain<T extends RouteHandlerType, OptionalMethods extends {}, RequiredMethods extends {}>(
   type: T,
   def: RouteHandlerDefinition<T, OptionalMethods, RequiredMethods>,
-  globalMiddleware: MiddlewareDefinition<T | 'all'>[],
+  globalMiddleware: MiddlewareDefinition<Scope>[],
   config: ResponderConfig,
   fns: ResponderFns,
 ): StandardizedRouteHandler<OptionalMethods, RequiredMethods> {

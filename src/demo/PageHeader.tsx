@@ -13,7 +13,7 @@ export default defineMiddleware('page', () => {
       };
     },
 
-    handleRoute(next) {
+    getRouteDirective(next) {
       return next();
     },
 

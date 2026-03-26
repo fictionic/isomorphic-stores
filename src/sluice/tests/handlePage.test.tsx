@@ -1,6 +1,6 @@
 import React from 'react';
 import { test, expect, describe } from 'vitest';
-import { handlePage } from '@/sluice/server/handlePage';
+import { handleRoute } from '@/sluice/server/handleRoute';
 import { Root, makeRootComponent } from '@/sluice/core/components/Root';
 import RootContainer from '@/sluice/core/components/RootContainer';
 import TheFold from '@/sluice/core/components/TheFold';
@@ -26,13 +26,13 @@ const DEFAULT_ROUTE_ASSETS: RouteAssets = { scripts: ['/client.js'], stylesheets
 
 async function render(init: PageInit, routeAssets: RouteAssets = DEFAULT_ROUTE_ASSETS): Promise<string> {
   const req = new Request('http://localhost/');
-  const response = await handlePage(req, definePage(init), {}, [], { routeAssets, renderTimeout: TEST_RENDER_TIMEOUT_MS });
+  const response = await handleRoute('page', req, definePage(init), {}, [], { routeAssets, renderTimeout: TEST_RENDER_TIMEOUT_MS });
   return collectStream(response.body!);
 }
 
 function simplePage(elements: React.ReactElement[], opts?: { title?: string; stylesheets?: Stylesheet[] }): PageInit {
   return () => ({
-    handleRoute() { return { status: 200 } },
+    getRouteDirective() { return { status: 200 } },
     getElements() { return elements; },
     getTitle() { return opts?.title ?? 'Test'; },
     getHeadStylesheets() { return opts?.stylesheets ?? []; },
@@ -99,7 +99,7 @@ describe('handlePage', () => {
       <Root when={when}><div>Delayed</div></Root>,
     ]);
     const req = new Request('http://localhost/');
-    const response = await handlePage(req, definePage(P), {}, [], { routeAssets: DEFAULT_ROUTE_ASSETS });
+    const response = await handleRoute('page', req, definePage(P), {}, [], { routeAssets: DEFAULT_ROUTE_ASSETS });
 
     // Resolve the promise so the stream can complete
     resolve();
@@ -117,7 +117,7 @@ describe('handlePage', () => {
       <Root><div>Fast</div></Root>,
     ]);
     const req = new Request('http://localhost/');
-    const response = await handlePage(req, definePage(P), {}, [], { routeAssets: DEFAULT_ROUTE_ASSETS });
+    const response = await handleRoute('page', req, definePage(P), {}, [], { routeAssets: DEFAULT_ROUTE_ASSETS });
 
     // Fast resolves immediately, slow resolves after
     resolveFirst();
@@ -233,7 +233,7 @@ describe('handlePage', () => {
       <DelayedRoot delay={when}><span>Waited</span></DelayedRoot>,
     ]);
     const req = new Request('http://localhost/');
-    const response = await handlePage(req, definePage(P), {}, [], { routeAssets: DEFAULT_ROUTE_ASSETS });
+    const response = await handleRoute('page', req, definePage(P), {}, [], { routeAssets: DEFAULT_ROUTE_ASSETS });
 
     resolve();
     const html = await collectStream(response.body!);
@@ -297,7 +297,7 @@ describe('handlePage', () => {
     ]);
 
     const req = new Request('http://localhost/');
-    const response = await handlePage(req, definePage(P), {}, [], { routeAssets: DEFAULT_ROUTE_ASSETS, renderTimeout: 50 });
+    const response = await handleRoute('page', req, definePage(P), {}, [], { routeAssets: DEFAULT_ROUTE_ASSETS, renderTimeout: 50 });
     const html = await collectStream(response.body!);
 
     expect(html).toContain('Ready');
@@ -309,7 +309,7 @@ describe('handlePage', () => {
   test('calls handleRoute on the page', async () => {
     let handleRouteCalled = false;
     const init: PageInit = () => ({
-      handleRoute() { handleRouteCalled = true; return { status: 200 }; },
+      getRouteDirective() { handleRouteCalled = true; return { status: 200 }; },
       getElements() { return [<Root><div>Hi</div></Root>]; },
       getTitle() { return 'Test'; },
       getHeadStylesheets() { return []; },

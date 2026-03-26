@@ -1,8 +1,10 @@
-import {defineRouteHandler, type MaybePromise, type RouteHandler, type RouteHandlerDefinition, type RouteHandlerInit} from "./Responder";
+import {defineRouteHandler, type MaybePromise, type RouteHandler, type RouteHandlerDefinition, type RouteHandlerInit, type StandardizedRouteHandler} from "./Responder";
+
+export type EndpointResponseData = string | ArrayBuffer | ReadableStream;
 
 export interface EndpointRequiredMethods {
   getContentType(): string;
-  getResponseData(): MaybePromise<string | ArrayBuffer | ReadableStream>;
+  getResponseData(): MaybePromise<EndpointResponseData>;
 };
 
 export type Endpoint = RouteHandler<'endpoint', {}, EndpointRequiredMethods>;
@@ -10,6 +12,8 @@ export type Endpoint = RouteHandler<'endpoint', {}, EndpointRequiredMethods>;
 export type EndpointInit = RouteHandlerInit<'endpoint', Endpoint>;
 
 export type EndpointDefinition = RouteHandlerDefinition<'endpoint', {}, EndpointRequiredMethods>;
+
+export type StandardizedEndpoint = StandardizedRouteHandler<{}, EndpointRequiredMethods>;
 
 const ENDPOINT_REQUIRED_METHOD_NAMES: (keyof EndpointRequiredMethods)[] = ['getContentType', 'getResponseData'];
 

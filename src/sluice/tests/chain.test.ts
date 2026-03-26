@@ -1,7 +1,7 @@
-import { test, expect, describe, vi } from 'vitest';
+import { test, expect, describe } from 'vitest';
 import { createHandlerChain } from '@/sluice/core/chain';
-import { defineRouteHandler, type ResponderFns, type HandleRouteResult, type RouteHandler } from '@/sluice/Responder';
-import { defineMiddleware, type MiddlewareDefinition } from '@/sluice/Middleware';
+import { defineRouteHandler, type ResponderFns, type RouteHandler } from '@/sluice/Responder';
+import { defineMiddleware } from '@/sluice/Middleware';
 import { ResponderConfig } from '@/sluice/core/ResponderConfig';
 import { startRequest } from '@/sluice/util/requestLocal';
 
@@ -38,7 +38,7 @@ describe('createHandlerChain', () => {
       const def = defineRouteHandler(
         'page',
         () => ({
-          handleRoute: () => ({ status: 200 }),
+          getRouteDirective: () => ({ status: 200 }),
           getElements: () => ['el'],
         }),
         TEST_OPTIONAL_DEFAULTS,
@@ -49,7 +49,7 @@ describe('createHandlerChain', () => {
 
       expect(chain.getTitle()).toBe('');
       expect(chain.getElements()).toEqual(['el']);
-      expect(chain.handleRoute()).toEqual({ status: 200 });
+      expect(chain.getRouteDirective()).toEqual({ status: 200 });
       expect(chain.getHeaders()).toEqual([]);
     });
   });
@@ -59,7 +59,7 @@ describe('createHandlerChain', () => {
       const def = defineRouteHandler(
         'page',
         () => ({
-          handleRoute: () => ({ status: 200 }),
+          getRouteDirective: () => ({ status: 200 }),
           getElements: () => ['el'],
           getTitle: () => 'My Title',
         }),
@@ -78,7 +78,7 @@ describe('createHandlerChain', () => {
       const def = defineRouteHandler(
         'page',
         () => ({
-          handleRoute: () => ({ status: 200 }),
+          getRouteDirective: () => ({ status: 200 }),
           getElements: () => ['el'],
           middleware: [],
           setConfigValues: () => ({}),
@@ -101,7 +101,7 @@ describe('createHandlerChain', () => {
       const def = defineRouteHandler(
         'page',
         () => ({
-          handleRoute: () => { callOrder.push('handler'); return { status: 200 }; },
+          getRouteDirective: () => { callOrder.push('handler'); return { status: 200 }; },
           getElements: () => { callOrder.push('handler-elements'); return ['el']; },
         }),
         TEST_OPTIONAL_DEFAULTS,
@@ -109,13 +109,13 @@ describe('createHandlerChain', () => {
       );
 
       const mw = defineMiddleware('page', () => ({
-        handleRoute: (next) => { callOrder.push('mw-before'); const r = next(); callOrder.push('mw-after'); return r; },
+        getRouteDirective: (next) => { callOrder.push('mw-before'); const r = next(); callOrder.push('mw-after'); return r; },
       }));
 
       const config = new ResponderConfig();
       const chain = createHandlerChain('page', def, [mw], config, DUMMY_FNS);
 
-      const result = chain.handleRoute();
+      const result = chain.getRouteDirective();
       expect(result).toEqual({ status: 200 });
       expect(callOrder).toEqual(['mw-before', 'handler', 'mw-after']);
 
@@ -133,7 +133,7 @@ describe('createHandlerChain', () => {
       const def = defineRouteHandler(
         'page',
         () => ({
-          handleRoute: () => { callOrder.push('handler'); return { status: 200 }; },
+          getRouteDirective: () => { callOrder.push('handler'); return { status: 200 }; },
           getElements: () => [],
         }),
         TEST_OPTIONAL_DEFAULTS,
@@ -141,17 +141,17 @@ describe('createHandlerChain', () => {
       );
 
       const outer = defineMiddleware('page', () => ({
-        handleRoute: (next) => { callOrder.push('outer-before'); const r = next(); callOrder.push('outer-after'); return r; },
+        getRouteDirective: (next) => { callOrder.push('outer-before'); const r = next(); callOrder.push('outer-after'); return r; },
       }));
 
       const inner = defineMiddleware('page', () => ({
-        handleRoute: (next) => { callOrder.push('inner-before'); const r = next(); callOrder.push('inner-after'); return r; },
+        getRouteDirective: (next) => { callOrder.push('inner-before'); const r = next(); callOrder.push('inner-after'); return r; },
       }));
 
       const config = new ResponderConfig();
       const chain = createHandlerChain('page', def, [outer, inner], config, DUMMY_FNS);
 
-      chain.handleRoute();
+      chain.getRouteDirective();
       expect(callOrder).toEqual([
         'outer-before', 'inner-before', 'handler', 'inner-after', 'outer-after',
       ]);
@@ -165,7 +165,7 @@ describe('createHandlerChain', () => {
       const def = defineRouteHandler(
         'page',
         () => ({
-          handleRoute: () => { handlerCalled = true; return { status: 200 }; },
+          getRouteDirective: () => { handlerCalled = true; return { status: 200 }; },
           getElements: () => [],
         }),
         TEST_OPTIONAL_DEFAULTS,
@@ -173,13 +173,13 @@ describe('createHandlerChain', () => {
       );
 
       const mw = defineMiddleware('page', () => ({
-        handleRoute: (_next) => ({ status: 302, redirectLocation: '/login' }),
+        getRouteDirective: (_next) => ({ status: 302, redirectLocation: '/login' }),
       }));
 
       const config = new ResponderConfig();
       const chain = createHandlerChain('page', def, [mw], config, DUMMY_FNS);
 
-      const result = chain.handleRoute();
+      const result = chain.getRouteDirective();
       expect(result).toEqual({ status: 302, redirectLocation: '/login' });
       expect(handlerCalled).toBe(false);
     });
@@ -192,7 +192,7 @@ describe('createHandlerChain', () => {
       const def = defineRouteHandler(
         'endpoint',
         () => ({
-          handleRoute: () => { callOrder.push('handler'); return { status: 200 }; },
+          getRouteDirective: () => { callOrder.push('handler'); return { status: 200 }; },
           getContentType: () => 'application/json',
           getResponseData: () => '{}',
         }),
@@ -201,14 +201,14 @@ describe('createHandlerChain', () => {
       );
 
       const pageMw = defineMiddleware('page', () => ({
-        handleRoute: (next) => { callOrder.push('page-mw'); return next(); },
+        getRouteDirective: (next) => { callOrder.push('page-mw'); return next(); },
       }));
 
       const config = new ResponderConfig();
       // pageMw has scope 'page', so it should be filtered out for endpoint chain
       const chain = createHandlerChain('endpoint', def, [pageMw as any], config, DUMMY_FNS);
 
-      chain.handleRoute();
+      chain.getRouteDirective();
       expect(callOrder).toEqual(['handler']);
     });
   });
@@ -220,7 +220,7 @@ describe('createHandlerChain', () => {
       const pageDef = defineRouteHandler(
         'page',
         () => ({
-          handleRoute: () => { callOrder.push('page-handler'); return { status: 200 }; },
+          getRouteDirective: () => { callOrder.push('page-handler'); return { status: 200 }; },
           getElements: () => [],
         }),
         TEST_OPTIONAL_DEFAULTS,
@@ -230,7 +230,7 @@ describe('createHandlerChain', () => {
       const endpointDef = defineRouteHandler(
         'endpoint',
         () => ({
-          handleRoute: () => { callOrder.push('endpoint-handler'); return { status: 200 }; },
+          getRouteDirective: () => { callOrder.push('endpoint-handler'); return { status: 200 }; },
           getContentType: () => 'text/plain',
           getResponseData: () => 'ok',
         }),
@@ -239,16 +239,16 @@ describe('createHandlerChain', () => {
       );
 
       const allMw = defineMiddleware('all', () => ({
-        handleRoute: (next) => { callOrder.push('all-mw'); return next(); },
+        getRouteDirective: (next) => { callOrder.push('all-mw'); return next(); },
       }));
 
       const config1 = new ResponderConfig();
-      createHandlerChain('page', pageDef, [allMw], config1, DUMMY_FNS).handleRoute();
+      createHandlerChain('page', pageDef, [allMw], config1, DUMMY_FNS).getRouteDirective();
       expect(callOrder).toEqual(['all-mw', 'page-handler']);
 
       callOrder.length = 0;
       const config2 = new ResponderConfig();
-      createHandlerChain('endpoint', endpointDef, [allMw as any], config2, DUMMY_FNS).handleRoute();
+      createHandlerChain('endpoint', endpointDef, [allMw as any], config2, DUMMY_FNS).getRouteDirective();
       expect(callOrder).toEqual(['all-mw', 'endpoint-handler']);
     });
   });
@@ -258,13 +258,13 @@ describe('createHandlerChain', () => {
       const callOrder: string[] = [];
 
       const handlerMw = defineMiddleware('page', () => ({
-        handleRoute: (next) => { callOrder.push('handler-mw'); return next(); },
+        getRouteDirective: (next) => { callOrder.push('handler-mw'); return next(); },
       }));
 
       const def = defineRouteHandler(
         'page',
         () => ({
-          handleRoute: () => { callOrder.push('handler'); return { status: 200 }; },
+          getRouteDirective: () => { callOrder.push('handler'); return { status: 200 }; },
           getElements: () => [],
           middleware: [handlerMw],
         }),
@@ -273,13 +273,13 @@ describe('createHandlerChain', () => {
       );
 
       const globalMw = defineMiddleware('page', () => ({
-        handleRoute: (next) => { callOrder.push('global-mw'); return next(); },
+        getRouteDirective: (next) => { callOrder.push('global-mw'); return next(); },
       }));
 
       const config = new ResponderConfig();
       const chain = createHandlerChain('page', def, [globalMw], config, DUMMY_FNS);
 
-      chain.handleRoute();
+      chain.getRouteDirective();
       // global first, then handler-declared, then handler
       expect(callOrder).toEqual(['global-mw', 'handler-mw', 'handler']);
     });
@@ -290,18 +290,18 @@ describe('createHandlerChain', () => {
       const callOrder: string[] = [];
 
       const subMw = defineMiddleware('page', () => ({
-        handleRoute: (next) => { callOrder.push('sub-mw'); return next(); },
+        getRouteDirective: (next) => { callOrder.push('sub-mw'); return next(); },
       }));
 
       const parentMw = defineMiddleware('page', () => ({
-        handleRoute: (next) => { callOrder.push('parent-mw'); return next(); },
+        getRouteDirective: (next) => { callOrder.push('parent-mw'); return next(); },
         middleware: [subMw],
       }));
 
       const def = defineRouteHandler(
         'page',
         () => ({
-          handleRoute: () => { callOrder.push('handler'); return { status: 200 }; },
+          getRouteDirective: () => { callOrder.push('handler'); return { status: 200 }; },
           getElements: () => [],
         }),
         TEST_OPTIONAL_DEFAULTS,
@@ -311,7 +311,7 @@ describe('createHandlerChain', () => {
       const config = new ResponderConfig();
       const chain = createHandlerChain('page', def, [parentMw], config, DUMMY_FNS);
 
-      chain.handleRoute();
+      chain.getRouteDirective();
       // sub-middleware comes before its parent (children first in flatMap)
       expect(callOrder).toEqual(['sub-mw', 'parent-mw', 'handler']);
     });
@@ -329,7 +329,7 @@ describe('createHandlerChain', () => {
       const def = defineRouteHandler(
         'page',
         () => ({
-          handleRoute: () => ({ status: 200 }),
+          getRouteDirective: () => ({ status: 200 }),
           getElements: () => [],
           setConfigValues: () => { callOrder.push('handler-set'); return { showHeader: true }; },
         }),
@@ -359,7 +359,7 @@ describe('createHandlerChain', () => {
         (fns) => {
           receivedFns.push(fns);
           return {
-            handleRoute: () => ({ status: 200 }),
+            getRouteDirective: () => ({ status: 200 }),
             getElements: () => [],
           };
         },
@@ -382,7 +382,7 @@ describe('createHandlerChain', () => {
       const def = defineRouteHandler(
         'page',
         () => ({
-          handleRoute: () => ({ status: 200 }),
+          getRouteDirective: () => ({ status: 200 }),
           getElements: () => ['original'],
           getTitle: () => 'Original',
         }),
@@ -391,7 +391,7 @@ describe('createHandlerChain', () => {
       );
 
       const mw = defineMiddleware('page', () => ({
-        handleRoute: (next) => {
+        getRouteDirective: (next) => {
           const result = next();
           return { ...result, status: 201 };
         },
@@ -401,7 +401,7 @@ describe('createHandlerChain', () => {
       const config = new ResponderConfig();
       const chain = createHandlerChain('page', def, [mw], config, DUMMY_FNS);
 
-      expect(chain.handleRoute()).toEqual({ status: 201 });
+      expect(chain.getRouteDirective()).toEqual({ status: 201 });
       expect(chain.getElements()).toEqual(['original', 'injected']);
       // getTitle not wrapped, uses handler value
       expect(chain.getTitle()).toBe('Original');
@@ -413,7 +413,7 @@ describe('createHandlerChain', () => {
       const def = defineRouteHandler(
         'page',
         () => ({
-          handleRoute: async () => {
+          getRouteDirective: async () => {
             await new Promise(r => setTimeout(r, 1));
             return { status: 200 };
           },
@@ -424,7 +424,7 @@ describe('createHandlerChain', () => {
       );
 
       const mw = defineMiddleware('page', () => ({
-        handleRoute: async (next) => {
+        getRouteDirective: async (next) => {
           const result = await next();
           return { ...result, hasDocument: true };
         },
@@ -433,7 +433,7 @@ describe('createHandlerChain', () => {
       const config = new ResponderConfig();
       const chain = createHandlerChain('page', def, [mw], config, DUMMY_FNS);
 
-      const result = await chain.handleRoute();
+      const result = await chain.getRouteDirective();
       expect(result).toEqual({ status: 200, hasDocument: true });
     });
   });
@@ -443,7 +443,7 @@ describe('createHandlerChain', () => {
       const def = defineRouteHandler(
         'page',
         () => ({
-          handleRoute: () => ({ status: 404 }),
+          getRouteDirective: () => ({ status: 404 }),
           getElements: () => ['not-found'],
         }),
         TEST_OPTIONAL_DEFAULTS,
@@ -453,7 +453,7 @@ describe('createHandlerChain', () => {
       const config = new ResponderConfig();
       const chain = createHandlerChain('page', def, [], config, DUMMY_FNS);
 
-      expect(chain.handleRoute()).toEqual({ status: 404 });
+      expect(chain.getRouteDirective()).toEqual({ status: 404 });
       expect(chain.getElements()).toEqual(['not-found']);
       expect(chain.getTitle()).toBe('');
       expect(chain.getHeaders()).toEqual([]);
@@ -465,19 +465,19 @@ describe('createHandlerChain', () => {
 
 function makeHandler(props: Record<string, any>): RouteHandler<'page', any, any> {
   return {
-    handleRoute: () => ({ status: 200 }),
+    getRouteDirective: () => ({ status: 200 }),
     ...props,
   };
 }
 
 describe('makeStandardizer', () => {
 
-  test('includes shared required methods (handleRoute) from handler', () => {
-    const handleRoute = () => ({ status: 201 });
+  test('includes shared required methods (getRouteDirective) from handler', () => {
+    const getRouteDirective = () => ({ status: 201 });
     const def = defineRouteHandler('page', () => null as any, {}, []);
-    const result = def.standardize(makeHandler({ handleRoute }));
+    const result = def.standardize(makeHandler({ getRouteDirective }));
 
-    expect(result.handleRoute).toBe(handleRoute);
+    expect(result.getRouteDirective).toBe(getRouteDirective);
   });
 
   test('fills in shared optional method defaults (getHeaders)', () => {
@@ -577,7 +577,7 @@ describe('makeStandardizer', () => {
     }));
 
     const keys = Object.keys(result).sort();
-    expect(keys).toEqual(['getElements', 'getHeaders', 'getTitle', 'handleRoute'].sort());
+    expect(keys).toEqual(['getElements', 'getHeaders', 'getRouteDirective', 'getTitle'].sort());
   });
 
   test('works with no handler-specific optional or required methods (endpoint-like)', () => {
@@ -585,14 +585,13 @@ describe('makeStandardizer', () => {
     const result = def.standardize(makeHandler({}));
 
     // Should have shared methods only
-    expect(result.handleRoute).toBeDefined();
+    expect(result.getRouteDirective).toBeDefined();
     expect(result.getHeaders).toBeDefined();
     const keys = Object.keys(result).sort();
-    expect(keys).toEqual(['getHeaders', 'handleRoute'].sort());
+    expect(keys).toEqual(['getHeaders', 'getRouteDirective'].sort());
   });
 
   test('uses handler method identity (not a copy)', () => {
-    const handleRoute = () => ({ status: 200 });
     const getElements = () => ['el'];
     const def = defineRouteHandler('page', () => null as any, TEST_OPTIONAL_DEFAULTS, TEST_REQUIRED_NAMES);
     const result = def.standardize(makeHandler({ getElements }));
