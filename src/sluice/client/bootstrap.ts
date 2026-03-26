@@ -5,7 +5,6 @@ import { PAGE_ELEMENT_TOKEN_ID_ATTR, PAGE_ROOT_ELEMENT_ATTR } from '../constants
 import { hydrateRoot } from 'react-dom/client';
 import { global } from './globals';
 import {Fetch} from '../core/fetch/Fetch';
-import {RequestContext} from '../core/RequestContext';
 import {match} from 'path-to-regexp';
 import type {PageDefinition} from '../Page';
 import {ResponderConfig} from '../core/ResponderConfig';
@@ -24,7 +23,6 @@ export async function bootstrap(def: PageDefinition, path: string, middleware: M
   }
   const { params: routeParams } = routeResult;
   const req = SluiceRequest.client(routeParams);
-  RequestContext.clientInit();
   Fetch.clientInit();
   const readablePipe = SluicePipe.reader();
   const fetchCache = (readablePipe.readValue(FETCH_CACHE_KEY) ?? {});

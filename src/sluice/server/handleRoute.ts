@@ -3,8 +3,7 @@ import type {RouteHandlerDefinition, RouteHandlerType} from "../RouteHandler";
 import type {MiddlewareDefinition} from "../Middleware";
 import type {RouteAssets} from "../bundle";
 import {startRequest} from "../util/requestLocal";
-import {RequestContext} from "../core/RequestContext";
-import {ResponseCookies} from "./ResponseCookies";
+import {ServerCookies} from "./ServerCookies";
 import {Fetch} from "../core/fetch/Fetch";
 import {ResponderConfig} from "../core/ResponderConfig";
 import {createHandlerChain} from "../core/chain";
@@ -29,8 +28,7 @@ export async function handleRoute<T extends RouteHandlerType>(
 ) {
   const response = await startRequest(async () => {
     const req = SluiceRequest.server(nativeRequest, routeParams);
-    RequestContext.serverInit(nativeRequest);
-    const cookies = new ResponseCookies();
+    const cookies = new ServerCookies(nativeRequest);
     Fetch.serverInit(options.urlPrefix ?? new URL(nativeRequest.url).origin);
     const config = new ResponderConfig();
     const ctx = createCtx(config, req);

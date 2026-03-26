@@ -1,33 +1,19 @@
-import { parse, type Cookies } from 'cookie';
 import { getNamespace } from '../util/requestLocal';
 
 const RLS = getNamespace<{ current: RequestContext }>();
 
+// TODO: what should this be for?
 export class RequestContext {
-  private request: Request | null;
-  private _cookies: Cookies | null = null;
-
-  static serverInit(req: Request) {
-    return new RequestContext(req);
+  static serverInit() {
+    return new RequestContext();
   }
 
   static clientInit() {
     return new RequestContext();
   }
 
-  private constructor(request?: Request) {
-    this.request = request ?? null;
+  private constructor() {
     RLS().current = this;
-  }
-
-  get cookies(): Cookies {
-    if (!this._cookies) {
-      if (!this.request) {
-        throw new Error("no request object exists clientside");
-      }
-      this._cookies = parse(this.request!.headers.get('cookie') ?? '');
-    }
-    return this._cookies;
   }
 
   static get(): RequestContext | undefined {
