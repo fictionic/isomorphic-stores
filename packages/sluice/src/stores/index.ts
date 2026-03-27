@@ -8,3 +8,4 @@ export type {
   Broadcast,
 } from './core/types';
 export { defineIsoStore } from './core/define';
+export { IsoStoreProvider } from './provider';

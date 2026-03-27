@@ -1,7 +1,6 @@
 import React from 'react';
-import { makeRootComponent } from 'sluice/components';
-import { IsoStoreProvider } from 'sluice/provider';
-import type { IsoStoreInstance } from 'sluice';
+import { makeRootComponent } from 'sluice';
+import { IsoStoreProvider, type IsoStoreInstance } from 'sluice/stores';
 
 interface Props {
   stores: Array<IsoStoreInstance<any>>;

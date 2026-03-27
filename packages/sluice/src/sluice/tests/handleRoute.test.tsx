@@ -2,8 +2,8 @@ import React from 'react';
 import { test, expect, describe, vi } from 'vitest';
 import { handleRoute } from '@/sluice/server/handleRoute';
 import { Root } from '@/sluice/core/components/Root';
-import { definePage, type PageInit } from '@/sluice/Page';
-import { defineEndpoint, type EndpointInit } from '@/sluice/Endpoint';
+import { definePage, type PageInit } from '@/sluice/core/handler/Page';
+import { defineEndpoint, type EndpointInit } from '@/sluice/core/handler/Endpoint';
 import { setCookie } from '@/sluice/util/cookies';
 import type { RouteAssets } from '@/sluice/bundle';
 

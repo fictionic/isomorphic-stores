@@ -4,7 +4,7 @@ import { handleRoute } from '@/sluice/server/handleRoute';
 import { Root, makeRootComponent } from '@/sluice/core/components/Root';
 import RootContainer from '@/sluice/core/components/RootContainer';
 import TheFold from '@/sluice/core/components/TheFold';
-import { definePage, type PageInit, type Stylesheet } from '@/sluice/Page';
+import { definePage, type PageInit, type Stylesheet } from '@/sluice/core/handler/Page';
 import type { RouteAssets } from '@/sluice/bundle';
 
 // --- Helpers ---

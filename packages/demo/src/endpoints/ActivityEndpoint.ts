@@ -1,4 +1,4 @@
-import { defineEndpoint } from 'sluice/endpoint';
+import { defineEndpoint } from 'sluice';
 import { delay } from '../delay';
 import { cookieLatency } from './cookieLatency';
 

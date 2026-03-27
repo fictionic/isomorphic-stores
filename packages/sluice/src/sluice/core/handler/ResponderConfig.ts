@@ -1,4 +1,4 @@
-import {getNamespace} from "../util/requestLocal";
+import {getNamespace} from "../../util/requestLocal";
 
 const RLS = getNamespace<{current: ResponderConfig}>();
 

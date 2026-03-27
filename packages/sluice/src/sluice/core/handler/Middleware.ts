@@ -1,8 +1,8 @@
 import type {SharedMethods, BaseResponder, RouteHandlerType} from "./RouteHandler";
-import type {BaseConfig} from "./core/ResponderConfig";
+import type {BaseConfig} from "./ResponderConfig";
 import type {PageOptionalMethods, PageRequiredMethods} from "./Page";
 import type {EndpointRequiredMethods} from "./Endpoint";
-import type {RouteHandlerCtx} from "./core/RouteHandlerCtx";
+import type {RouteHandlerCtx} from "./RouteHandlerCtx";
 
 type HandlerMethodsMap = {
   page: PageOptionalMethods & PageRequiredMethods;

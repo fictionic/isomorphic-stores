@@ -3,7 +3,7 @@ import { scheduleRender } from '../core/components/Root';
 import {TOKEN, tokenizeElements, type PageElementToken} from '../core/elementTokenizer';
 import {renderContainerOpen, renderContainerClose} from '../core/components/RootContainer';
 import {PAGE_ELEMENT_TOKEN_ID_ATTR, PAGE_ROOT_ELEMENT_ATTR} from '../constants';
-import type {StandardizedPage} from '../Page';
+import type {StandardizedPage} from '../core/handler/Page';
 
 const TOKEN_STATUS = {
   PENDING: 'PENDING',

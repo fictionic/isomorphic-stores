@@ -1,4 +1,4 @@
-import type {StandardizedPage, Stylesheet} from "../Page";
+import type {StandardizedPage, Stylesheet} from "../core/handler/Page";
 
 export function writeHeader(page: StandardizedPage, stylesheets: string[], write: (html: string) => void) {
   write(`<title>${page.getTitle()}</title>`);

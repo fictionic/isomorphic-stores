@@ -1,16 +1,16 @@
 import type {ParamData} from "path-to-regexp";
-import type {RouteHandlerDefinition, RouteHandlerType} from "../RouteHandler";
-import type {MiddlewareDefinition} from "../Middleware";
+import type {RouteHandlerDefinition, RouteHandlerType} from "../core/handler/RouteHandler";
+import type {MiddlewareDefinition} from "../core/handler/Middleware";
 import type {RouteAssets} from "../bundle";
 import {startRequest} from "../util/requestLocal";
 import {ServerCookies} from "./ServerCookies";
 import {Fetch} from "../core/fetch/Fetch";
-import {ResponderConfig} from "../core/ResponderConfig";
-import {createHandlerChain} from "../core/chain";
+import {ResponderConfig} from "../core/handler/ResponderConfig";
+import {createHandlerChain} from "../core/handler/chain";
 import {handlePage} from "./handlePage";
 import {handleEndpoint} from "./handleEndpoint";
 import {SluiceRequest} from "../core/SluiceRequest";
-import {createCtx} from "../core/RouteHandlerCtx";
+import {createCtx} from "../core/handler/RouteHandlerCtx";
 
 interface Options {
   routeAssets: RouteAssets;

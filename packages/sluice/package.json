@@ -5,13 +5,9 @@
     "sluice": "./src/sluice/cli.ts"
   },
   "exports": {
-    ".": "./src/stores/index.ts",
-    "./adapter": "./src/stores/adapter.ts",
-    "./provider": "./src/stores/provider.tsx",
-    "./page": "./src/sluice/Page.ts",
-    "./middleware": "./src/sluice/Middleware.ts",
-    "./endpoint": "./src/sluice/Endpoint.ts",
-    "./components": "./src/sluice/core/components/index.ts",
+    ".": "./src/sluice/index.ts",
+    "./stores": "./src/stores/index.ts",
+    "./stores/adapter": "./src/stores/adapter.ts",
     "./fetch": "./src/sluice/core/fetch/index.ts",
     "./cookies": "./src/sluice/util/cookies.ts",
     "./server": "./src/sluice/server/index.ts",

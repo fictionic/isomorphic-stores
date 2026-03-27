@@ -1,6 +1,6 @@
-import type {BaseConfig} from "./core/ResponderConfig";
+import type {BaseConfig} from "./ResponderConfig";
 import type {MiddlewareDefinition, Scope} from "./Middleware";
-import type {RouteHandlerCtx} from "./core/RouteHandlerCtx";
+import type {RouteHandlerCtx} from "./RouteHandlerCtx";
 
 export type MaybePromise<T> = T | Promise<T>;
 

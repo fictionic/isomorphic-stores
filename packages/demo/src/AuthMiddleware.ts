@@ -1,4 +1,4 @@
-import { defineMiddleware } from 'sluice/middleware';
+import { defineMiddleware } from 'sluice';
 
 export default defineMiddleware('all', (fns) => ({
   getRouteDirective: (next) => {

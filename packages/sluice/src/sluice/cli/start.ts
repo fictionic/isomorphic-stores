@@ -4,7 +4,7 @@ import type { SluiceConfig } from '../config';
 import { resolveOutDir } from '../config';
 import type { BundleManifest, BundleResult } from '../bundle';
 import type { SiteConfig } from '../server/router';
-import type { RouteHandlerDefinition } from '../RouteHandler';
+import type { RouteHandlerDefinition } from '../core/handler/RouteHandler';
 import { createSluiceServer } from '../server/createSluiceServer';
 
 async function loadBundleResult(outDir: string, siteConfigPath: string): Promise<BundleResult> {

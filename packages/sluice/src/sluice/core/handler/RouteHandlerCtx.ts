@@ -1,5 +1,5 @@
 import type {ResponderConfig} from "./ResponderConfig";
-import type {SluiceRequest} from "./SluiceRequest";
+import type {SluiceRequest} from "../SluiceRequest";
 
 export interface RouteHandlerCtx {
   getConfig: ResponderConfig['getValue'];

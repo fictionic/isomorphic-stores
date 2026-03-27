@@ -1,6 +1,5 @@
 import React from 'react';
-import { RootContainer } from 'sluice/components';
-import { definePage } from 'sluice/page';
+import { RootContainer, definePage } from 'sluice';
 
 export default definePage(() => ({
   getTitle() {

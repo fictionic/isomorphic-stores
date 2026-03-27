@@ -1,10 +1,10 @@
 import { test, expect, describe } from 'vitest';
-import { createHandlerChain } from '@/sluice/core/chain';
-import { defineRouteHandler, type RouteHandler } from '@/sluice/RouteHandler';
-import { defineMiddleware } from '@/sluice/Middleware';
-import { ResponderConfig } from '@/sluice/core/ResponderConfig';
+import { createHandlerChain } from '@/sluice/core/handler/chain';
+import { defineRouteHandler, type RouteHandler } from '@/sluice/core/handler/RouteHandler';
+import { defineMiddleware } from '@/sluice/core/handler/Middleware';
+import { ResponderConfig } from '@/sluice/core/handler/ResponderConfig';
 import { startRequest } from '@/sluice/util/requestLocal';
-import type {RouteHandlerCtx} from '../core/RouteHandlerCtx';
+import type {RouteHandlerCtx} from '../core/handler/RouteHandlerCtx';
 
 // --- Helpers ---
 

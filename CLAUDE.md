@@ -54,13 +54,9 @@ packages/
 Each package uses `@/*` as a path alias to its own `src/` directory.
 
 ### sluice package exports
-- `sluice` → `src/stores/index.ts` — store types + `defineIsoStore`
-- `sluice/adapter` → `src/stores/adapter.ts` — adapter author API
-- `sluice/provider` → `src/stores/provider.tsx` — `IsoStoreProvider`
-- `sluice/page` → `src/sluice/Page.ts` — `definePage`
-- `sluice/middleware` → `src/sluice/Middleware.ts` — `defineMiddleware`
-- `sluice/endpoint` → `src/sluice/Endpoint.ts` — `defineEndpoint`
-- `sluice/components` → `src/sluice/core/components/index.ts` — `Root`, `RootContainer`, `TheFold`, `makeRootComponent`
+- `sluice` → `src/sluice/index.ts` — primary authoring API: `definePage`, `defineMiddleware`, `defineEndpoint`, `Root`, `RootContainer`, `TheFold`, `makeRootComponent`, `RouteHandlerCtx` (type), `RouteDirective` (type)
+- `sluice/stores` → `src/stores/index.ts` — `defineIsoStore`, `IsoStoreProvider`, store types (`IsoStoreDefinition`, `IsoStoreInstance`, etc.)
+- `sluice/stores/adapter` → `src/stores/adapter.ts` — adapter author API: `Adapter` type + `defineIsoStore`
 - `sluice/fetch` → `src/sluice/core/fetch/index.ts` — isomorphic `fetch`
 - `sluice/cookies` → `src/sluice/util/cookies.ts` — `getCookie`, `setCookie`
 - `sluice/server` → `src/sluice/server/index.ts` — `createSluiceServer`, `SiteConfig`, `Routes`
@@ -71,7 +67,7 @@ Each package uses `@/*` as a path alias to its own `src/` directory.
 
 ```
 src/sluice/
-├── Page.ts          # Page interface (handleRoute, getElements, getTitle, getStyles)
+├── index.ts         # root barrel: re-exports handler APIs + components
 ├── bundle.ts        # bundler-agnostic types (RouteAssets, BundleManifest, BundleResult)
 ├── bunBundler.ts    # Bun-specific bundler (temporary)
 ├── viteBundler.ts   # Vite-based bundler; produces BundleResult via vite.build()
@@ -84,9 +80,16 @@ src/sluice/
 ├── core/
 │   ├── RequestContext.ts   # server-side escape hatch: raw Request + cookies; RLS-backed
 │   ├── SluiceRequest.ts    # isomorphic request facade (URL, query params, route params)
-│   ├── RouteHandlerCtx.ts  # RouteHandlerCtx interface + createCtx factory
 │   ├── SluicePipe.ts       # typed server→client pipe instance
 │   ├── elementTokenizer.ts
+│   ├── handler/
+│   │   ├── Page.ts             # definePage + Page interface
+│   │   ├── Middleware.ts       # defineMiddleware + Middleware interface
+│   │   ├── Endpoint.ts         # defineEndpoint + Endpoint interface
+│   │   ├── RouteHandler.ts     # defineRouteHandler + base types
+│   │   ├── RouteHandlerCtx.ts  # RouteHandlerCtx interface + createCtx factory
+│   │   ├── ResponderConfig.ts  # BaseConfig interface
+│   │   └── chain.ts            # handler chain building logic
 │   ├── fetch/
 │   │   ├── index.ts        # consumer-facing export: just `fetch`
 │   │   ├── Fetch.ts        # framework-facing interface: serverInit, clientInit, fetch, getCache
@@ -102,7 +105,9 @@ src/sluice/
 ├── server/
 │   ├── index.ts              # barrel export
 │   ├── createSluiceServer.ts # wires up routing, bundle serving, and SSR handler
+│   ├── handleRoute.ts        # common setup for all route types
 │   ├── handlePage.ts         # orchestrates per-request SSR
+│   ├── handleEndpoint.ts     # handler for JSON endpoints
 │   ├── stream.ts             # streaming HTML writer (header, roots, bootstrap, late arrivals)
 │   ├── writeHeader.ts        # <head> rendering (title, styles, bundle stylesheets)
 │   ├── writeBody.ts          # body rendering (roots, containers, TheFold)
@@ -115,9 +120,9 @@ src/sluice/
     └── requestLocal.ts
 
 src/stores/
-├── index.ts         # public API: types + defineIsoStore
-├── adapter.ts       # adapter author API
-├── provider.tsx     # IsoStoreProvider
+├── index.ts         # public API: types + defineIsoStore + IsoStoreProvider
+├── adapter.ts       # adapter author API (Adapter type + defineIsoStore)
+├── provider.tsx     # IsoStoreProvider component
 ├── core/
 │   ├── types.ts     # all public types (IsoStoreDefinition, IsoStoreInstance, etc.)
 │   ├── define.ts    # defineIsoStore, internal logic

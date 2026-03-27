@@ -6,11 +6,11 @@ import { hydrateRoot } from 'react-dom/client';
 import { global } from './globals';
 import {Fetch} from '../core/fetch/Fetch';
 import {match} from 'path-to-regexp';
-import type {PageDefinition} from '../Page';
-import {ResponderConfig} from '../core/ResponderConfig';
-import {createHandlerChain} from '../core/chain';
-import type {MiddlewareDefinition} from '../Middleware';
-import {createCtx} from '../core/RouteHandlerCtx';
+import type {PageDefinition} from '../core/handler/Page';
+import {ResponderConfig} from '../core/handler/ResponderConfig';
+import {createHandlerChain} from '../core/handler/chain';
+import type {MiddlewareDefinition} from '../core/handler/Middleware';
+import {createCtx} from '../core/handler/RouteHandlerCtx';
 import {SluiceRequest} from '../core/SluiceRequest';
 
 global.CLIENT_READY_DFD = Promise.withResolvers<void>();

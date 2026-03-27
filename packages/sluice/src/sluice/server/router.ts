@@ -1,6 +1,6 @@
 import {match, type ParamData} from "path-to-regexp";
 import {ensureArray} from "../util/array";
-import type {MiddlewareDefinition} from "../Middleware";
+import type {MiddlewareDefinition} from "../core/handler/Middleware";
 
 export type SiteConfig = {
   middleware?: MiddlewareDefinition[];

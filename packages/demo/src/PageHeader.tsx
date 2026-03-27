@@ -1,5 +1,4 @@
-import { Root } from 'sluice/components';
-import { defineMiddleware } from 'sluice/middleware';
+import { Root, defineMiddleware } from 'sluice';
 
 interface HeaderConfig {
   showHeader: boolean;

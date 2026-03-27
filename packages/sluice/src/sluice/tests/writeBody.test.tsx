@@ -3,7 +3,7 @@ import { test, expect, describe, vi } from 'vitest';
 import { Root, makeRootComponent } from '@/sluice/core/components/Root';
 import RootContainer from '@/sluice/core/components/RootContainer';
 import TheFold from '@/sluice/core/components/TheFold';
-import type { StandardizedPage } from '@/sluice/Page';
+import type { StandardizedPage } from '@/sluice/core/handler/Page';
 
 vi.mock('@/sluice/core/components/RootContainer', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/sluice/core/components/RootContainer')>();

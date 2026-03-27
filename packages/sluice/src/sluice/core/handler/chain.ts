@@ -1,5 +1,5 @@
-import type {MiddlewareDefinition, Middleware, Scope} from "../Middleware";
-import type {RouteHandlerDefinition, RouteHandlerType, StandardizedRouteHandler} from "../RouteHandler";
+import type {MiddlewareDefinition, Middleware, Scope} from "./Middleware";
+import type {RouteHandlerDefinition, RouteHandlerType, StandardizedRouteHandler} from "./RouteHandler";
 import type {ResponderConfig} from "./ResponderConfig";
 import type {RouteHandlerCtx} from "./RouteHandlerCtx";
 

@@ -2,7 +2,7 @@ import path from 'node:path';
 import { unlink, mkdir } from 'node:fs/promises';
 import type {BundleManifest, BundleResult} from './bundle';
 import type {SiteConfig} from './server/router';
-import type {RouteHandlerDefinition} from './RouteHandler';
+import type {RouteHandlerDefinition} from './core/handler/RouteHandler';
 
 const BUNDLES_DIR = 'bundles';
 

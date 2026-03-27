@@ -4,8 +4,8 @@ import {
   type StateCreator as NativeZustandStoreInit,
 } from "zustand/vanilla";
 import { useStore as useNativeZustandStore } from "zustand/react";
-import { type Adapter } from 'sluice/adapter';
-import { defineIsoStore, type IsoStoreInit } from 'sluice';
+import { type Adapter } from 'sluice/stores/adapter';
+import { defineIsoStore, type IsoStoreInit } from 'sluice/stores';
 
 type UseZustandStore<State> = {
   (): State;

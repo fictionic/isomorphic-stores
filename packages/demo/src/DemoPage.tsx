@@ -1,7 +1,6 @@
 import { ProfileStore, ThemeStore, ActivityStore } from './stores';
 import StoreRoot from './StoreRoot';
-import { RootContainer, TheFold } from 'sluice/components';
-import { definePage } from 'sluice/page';
+import { RootContainer, TheFold, definePage } from 'sluice';
 import { User } from './components/User';
 import { Prefs } from './components/Prefs';
 import { Activity } from './components/Activity';

@@ -1,4 +1,4 @@
-import type {EndpointResponseData, StandardizedEndpoint} from "../Endpoint";
+import type {EndpointResponseData, StandardizedEndpoint} from "../core/handler/Endpoint";
 
 export async function handleEndpoint(
   endpoint: StandardizedEndpoint,

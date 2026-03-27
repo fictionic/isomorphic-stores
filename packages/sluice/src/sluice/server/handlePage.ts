@@ -1,6 +1,6 @@
 import {makeStreamer} from './stream';
 import type {RouteAssets} from '../bundle';
-import type {StandardizedPage} from '../Page';
+import type {StandardizedPage} from '../core/handler/Page';
 
 const RENDER_TIMEOUT_MS = 20_000;
 

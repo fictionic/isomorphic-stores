@@ -1,7 +1,7 @@
 import type {RouteAssets} from "../bundle";
 import {Fetch} from "../core/fetch/Fetch";
 import {FETCH_CACHE_KEY, FN_HYDRATE_ROOTS_UP_TO, FN_RECEIVE_LATE_DATA_ARRIVAL, SluicePipe} from "../core/SluicePipe";
-import type {StandardizedPage} from "../Page";
+import type {StandardizedPage} from "../core/handler/Page";
 import {writeBody} from "./writeBody";
 import {writeHeader} from "./writeHeader";
 
