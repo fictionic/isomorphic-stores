@@ -1,35 +1,9 @@
 {
-  "name": "sluice",
+  "name": "sluice-workspace",
   "private": true,
-  "exports": {
-    ".": "./src/stores/index.ts",
-    "./adapter": "./src/stores/adapter.ts",
-    "./provider": "./src/stores/provider.tsx"
-  },
-  "scripts": {
-    "test": "bunx vitest run",
-    "test:e2e": "bunx playwright test"
-  },
-  "peerDependencies": {
-    "typescript": "^5",
-    "react": "^19.2.4"
-  },
-  "devDependencies": {
-    "@playwright/test": "^1.58.2",
-    "@testing-library/react": "^16.3.2",
-    "@types/bun": "latest",
-    "@types/cookie": "^1.0.0",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "jotai": "^2.18.1",
-    "jsdom": "^29.0.0",
-    "react-dom": "^19.2.4",
-    "redux": "^5.0.1",
-    "vitest": "^4.1.0",
-    "zustand": "^5.0.11"
-  },
-  "dependencies": {
-    "cookie": "^1.1.1",
-    "path-to-regexp": "^8.3.0"
-  }
+  "workspaces": [
+    "packages/sluice",
+    "packages/store-adapters",
+    "packages/demo"
+  ]
 }

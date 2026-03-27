@@ -1,11 +1,11 @@
 
 ## Project Overview
 
-**Sluice** is a streaming SSR framework, and **isomorphic-stores** is its state management layer — a framework-agnostic adapter system for plugging Zustand, Redux, etc. into Sluice's SSR model. They live in one repo as a single package (`sluice`).
+**Sluice** is a streaming SSR framework, and **isomorphic-stores** is its state management layer — a framework-agnostic adapter system for plugging Zustand, Redux, etc. into Sluice's SSR model.
 
 **Architecture**: Sluice owns the server and the bundler. The server targets Node's standard HTTP APIs (works on Bun/Deno via Node compat). The bundler is Vite. Both are theoretically pluggable via adapters later, but there is no formal adapter system now — `BundleResult` (`bundle.ts`) is the clean boundary for the bundler, and standard `Request`/`Response` is the boundary for the server. `bunBundler.ts` is temporary and will be removed. `viteBundler.ts` is the Vite-based bundler.
 
-**CLI**: `sluice dev` starts a Vite dev server with HMR composed with sluice's SSR handler. `sluice build` writes production bundles to disk + `manifest.json`. The user does not own the server file — sluice orchestrates HTTP serving, and the user provides configuration (routes, API endpoints, etc.) via `sluice.config.ts`.
+**CLI** (in progress): `sluice dev` starts a Vite dev server with HMR composed with sluice's SSR handler. `sluice build` writes production bundles to disk + `manifest.json`. `sluice start` serves pre-built bundles + SSR. The user does not own the server file — sluice orchestrates HTTP serving, and the user provides configuration (routes, API endpoints, etc.) via `sluice.config.ts`.
 
 **Dev runtime**: Bun is used for running/building/installing during development, but framework code must avoid Bun-specific APIs.
 
@@ -13,72 +13,119 @@ The core idea: stores are created server-side before render, async data is decla
 
 A secondary goal: replace the pattern of bubbling all UI updates up through a root element (which triggers full-tree re-renders) with granular per-component subscriptions via selectors.
 
-### Source layout
+### Workspace layout
+
+This is a Bun workspace monorepo with three packages:
 
 ```
-src/
-├── sluice/              # SSR framework
-│   ├── Page.ts          # Page interface (handleRoute, getElements, getTitle, getStyles)
-│   ├── bundle.ts        # bundler-agnostic types (RouteAssets, BundleManifest, BundleResult)
-│   ├── bunBundler.ts    # Bun-specific bundler (temporary); produces BundleResult with per-route splitting
-│   ├── viteBundler.ts   # Vite-based bundler; same BundleResult contract, uses vite.build() with Rolldown
-│   ├── constants.ts     # DOM attribute names (PAGE_ROOT_ELEMENT_ATTR, etc.)
-│   ├── core/
-│   │   ├── RequestContext.ts   # server-side escape hatch: raw Request + cookies; RLS-backed
-│   │   ├── SluiceRequest.ts    # isomorphic request facade (URL, query params, route params)
-│   │   ├── RouteHandlerCtx.ts  # RouteHandlerCtx interface + createCtx factory
-│   │   ├── SluicePipe.ts       # typed server→client pipe instance (schema + constants)
-│   │   ├── elementTokenizer.ts
-│   │   ├── fetch/
-│   │   │   ├── index.ts        # consumer-facing export: just `fetch`
-│   │   │   ├── Fetch.ts        # framework-facing interface: serverInit, clientInit, fetch, getCache
-│   │   │   ├── cache.ts        # FetchCache class (server/client accessor objects)
-│   │   │   └── nativeFetch.ts  # indirection for globalThis.fetch (mockable in tests)
-│   │   └── components/
-│   │       ├── Root.tsx
-│   │       ├── RootContainer.tsx
-│   │       └── TheFold.tsx
-│   ├── client/
-│   │   └── bootstrap.ts # client entry point; receives PageClass + route pattern
-│   ├── server/
-│   │   ├── createSluiceServer.ts  # wires up routing, bundle serving, and SSR handler
-│   │   ├── handlePage.ts          # orchestrates per-request SSR
-│   │   ├── stream.ts              # streaming HTML writer (header, roots, bootstrap, late arrivals)
-│   │   ├── writeHeader.ts         # <head> rendering (title, styles, bundle stylesheets)
-│   │   ├── writeBody.ts           # body rendering (roots, containers, TheFold)
-│   │   ├── ResponseCookies.ts     # response cookie accumulator; RLS-backed
-│   │   └── router.ts              # route matching via path-to-regexp
-│   ├── tests/
-│   └── util/
-│       ├── ServerClientPipe.ts  # generic typed server→client pipe factory
-│       ├── cookies.ts           # isomorphic cookie get/set util
-│       └── requestLocal.ts
-├── stores/              # isomorphic-stores library
-│   ├── index.ts         # types-only entry point
-│   ├── adapter.ts       # adapter author API
-│   ├── provider.tsx     # IsoStoreProvider
-│   ├── core/
-│   │   ├── types.ts     # all public types (IsoStoreDefinition, IsoStoreInstance, etc.)
-│   │   ├── define.ts    # defineIsoStore, internal logic
-│   │   ├── constants.ts
-│   │   ├── StoreProvider.tsx
-│   │   └── lifecycle.ts
-│   └── tests/
-└── demo/                # demo app (exercises sluice + stores together)
-    ├── server.tsx
-    ├── routes.ts        # route definitions (path + page module path), typed as SluiceRoutes
-    ├── DemoPage.tsx
-    ├── LinkPage.tsx
-    ├── StoreRoot.tsx
-    ├── adapters/        # Zustand + Redux adapter implementations
-    ├── stores/          # demo store definitions + defineZustandIsoStore wrapper
-    └── components/
+package.json                # workspace root
+tsconfig.base.json          # shared compiler options
+bunfig.toml                 # defines SERVER_SIDE=true for Bun runtime
+packages/
+├── sluice/                 # SSR framework + isomorphic-stores
+│   ├── package.json        # name: "sluice"
+│   ├── tsconfig.json       # extends ../../tsconfig.base.json
+│   ├── vitest.config.ts    # @/ alias + SERVER_SIDE define
+│   └── src/
+│       ├── sluice/         # SSR framework
+│       └── stores/         # isomorphic-stores library
+├── store-adapters/         # Zustand + Redux adapter implementations
+│   ├── package.json        # name: "sluice-store-adapters", depends on sluice
+│   ├── tsconfig.json
+│   └── src/
+│       ├── zustand.ts      # Zustand adapter + defineZustandIsoStore
+│       └── redux.ts        # Redux adapter + defineReduxIsoStore
+└── demo/                   # demo app (exercises sluice + stores)
+    ├── package.json        # name: "sluice-demo", depends on sluice + sluice-store-adapters
+    ├── tsconfig.json
+    ├── playwright.config.ts
+    ├── sluice.config.ts    # demo's sluice configuration
+    ├── src/
+    │   ├── server.tsx      # demo server entry point
+    │   ├── routes.ts       # route definitions (SiteConfig)
+    │   ├── DemoPage.tsx
+    │   ├── LinkPage.tsx
+    │   ├── stores/         # demo store definitions
+    │   ├── components/
+    │   └── endpoints/
+    └── e2e/                # Playwright E2E tests
 ```
 
-### Package exports
-- `sluice` → `src/stores/index.ts` — types only
+Each package uses `@/*` as a path alias to its own `src/` directory.
+
+### sluice package exports
+- `sluice` → `src/stores/index.ts` — store types + `defineIsoStore`
 - `sluice/adapter` → `src/stores/adapter.ts` — adapter author API
 - `sluice/provider` → `src/stores/provider.tsx` — `IsoStoreProvider`
+- `sluice/page` → `src/sluice/Page.ts` — `definePage`
+- `sluice/middleware` → `src/sluice/Middleware.ts` — `defineMiddleware`
+- `sluice/endpoint` → `src/sluice/Endpoint.ts` — `defineEndpoint`
+- `sluice/components` → `src/sluice/core/components/index.ts` — `Root`, `RootContainer`, `TheFold`, `makeRootComponent`
+- `sluice/fetch` → `src/sluice/core/fetch/index.ts` — isomorphic `fetch`
+- `sluice/cookies` → `src/sluice/util/cookies.ts` — `getCookie`, `setCookie`
+- `sluice/server` → `src/sluice/server/index.ts` — `createSluiceServer`, `SiteConfig`, `Routes`
+- `sluice/bundler` → `src/sluice/viteBundler.ts` — `bundle`
+- `sluice/config` → `src/sluice/config.ts` — `SluiceConfig` type
+
+### sluice source layout
+
+```
+src/sluice/
+├── Page.ts          # Page interface (handleRoute, getElements, getTitle, getStyles)
+├── bundle.ts        # bundler-agnostic types (RouteAssets, BundleManifest, BundleResult)
+├── bunBundler.ts    # Bun-specific bundler (temporary)
+├── viteBundler.ts   # Vite-based bundler; produces BundleResult via vite.build()
+├── config.ts        # SluiceConfig type for sluice.config.ts
+├── cli.ts           # CLI entry point (sluice build, sluice start)
+├── cli/
+│   ├── build.ts     # sluice build: bundle + write to disk
+│   └── start.ts     # sluice start: read manifest + serve
+├── constants.ts     # DOM attribute names
+├── core/
+│   ├── RequestContext.ts   # server-side escape hatch: raw Request + cookies; RLS-backed
+│   ├── SluiceRequest.ts    # isomorphic request facade (URL, query params, route params)
+│   ├── RouteHandlerCtx.ts  # RouteHandlerCtx interface + createCtx factory
+│   ├── SluicePipe.ts       # typed server→client pipe instance
+│   ├── elementTokenizer.ts
+│   ├── fetch/
+│   │   ├── index.ts        # consumer-facing export: just `fetch`
+│   │   ├── Fetch.ts        # framework-facing interface: serverInit, clientInit, fetch, getCache
+│   │   ├── cache.ts        # FetchCache class (server/client accessor objects)
+│   │   └── nativeFetch.ts  # indirection for globalThis.fetch (mockable in tests)
+│   └── components/
+│       ├── index.ts
+│       ├── Root.tsx
+│       ├── RootContainer.tsx
+│       └── TheFold.tsx
+├── client/
+│   └── bootstrap.ts # client entry point; receives PageClass + route pattern
+├── server/
+│   ├── index.ts              # barrel export
+│   ├── createSluiceServer.ts # wires up routing, bundle serving, and SSR handler
+│   ├── handlePage.ts         # orchestrates per-request SSR
+│   ├── stream.ts             # streaming HTML writer (header, roots, bootstrap, late arrivals)
+│   ├── writeHeader.ts        # <head> rendering (title, styles, bundle stylesheets)
+│   ├── writeBody.ts          # body rendering (roots, containers, TheFold)
+│   ├── ServerCookies.ts      # response cookie accumulator; RLS-backed
+│   └── router.ts             # route matching via path-to-regexp
+├── tests/
+└── util/
+    ├── ServerClientPipe.ts  # generic typed server→client pipe factory
+    ├── cookies.ts           # isomorphic cookie get/set util
+    └── requestLocal.ts
+
+src/stores/
+├── index.ts         # public API: types + defineIsoStore
+├── adapter.ts       # adapter author API
+├── provider.tsx     # IsoStoreProvider
+├── core/
+│   ├── types.ts     # all public types (IsoStoreDefinition, IsoStoreInstance, etc.)
+│   ├── define.ts    # defineIsoStore, internal logic
+│   ├── constants.ts
+│   ├── StoreProvider.tsx
+│   └── lifecycle.ts
+└── tests/
+```
 
 ### isomorphic-stores Architecture
 
@@ -90,8 +137,8 @@ The `Adapter` bridges the two: `createNativeStore(nativeStoreInit)` turns the in
 
 Three levels of abstraction:
 1. **`defineIsoStore(isoInit, adapter, options?)`** — core library function; framework-agnostic
-2. **`getAdapter<State>()`** — adapter module (e.g. `demo/adapters/zustand.ts`); encapsulates framework-specific types. Must be called as `getAdapter<State>()` to ensure TypeScript infers `State` from the adapter.
-3. **`defineZustandIsoStore(isoInit, options?)`** — application-layer wrapper in `demo/stores/define.ts`; combines adapter + `defineIsoStore`.
+2. **`getAdapter<State>()`** — adapter module (e.g. `store-adapters/src/zustand.ts`); encapsulates framework-specific types. Must be called as `getAdapter<State>()` to ensure TypeScript infers `State` from the adapter.
+3. **`defineZustandIsoStore(isoInit, options?)`** — convenience wrapper exported from `sluice-store-adapters/zustand`; combines adapter + `defineIsoStore`.
 
 ```ts
 // Zustand example
@@ -152,11 +199,11 @@ Three layers:
 
 ### Sluice SSR pipeline
 
-- `createSluiceServer.ts` — wires everything together. Takes `routesPath` (path to routes module) and a `BundleResult`. Dynamically imports the routes module and each page class. Returns `routes` (static bundle-serving routes for `Bun.serve`) and `serve` (SSR request handler that matches routes, resolves page classes, and delegates to `handlePage`).
-- `handleRoute.ts` — common setup for all route types. Initializes RLS (`RequestContext`, `ResponseCookies`, `Fetch`), creates `SluiceRequest` and `RouteHandlerCtx`, builds the handler chain, calls `getRouteDirective()`, then delegates to `handlePage` or `handleEndpoint`.
+- `createSluiceServer.ts` — wires everything together. Takes `siteConfigPath` and a `BundleResult`. Dynamically imports the site config to get routes/middleware. Returns `routes` (static bundle-serving routes for `Bun.serve`) and `serve` (SSR request handler that matches routes, resolves handlers, and delegates to `handleRoute`).
+- `handleRoute.ts` — common setup for all route types. Initializes RLS (`RequestContext`, `ServerCookies`, `Fetch`), creates `SluiceRequest` and `RouteHandlerCtx`, builds the handler chain, calls `getRouteDirective()`, then delegates to `handlePage` or `handleEndpoint`.
 - `handlePage.ts` — orchestrates per-request SSR. Delegates to `makeStreamer` for streaming HTML. Takes `routeAssets: RouteAssets` (per-route scripts and stylesheets from the bundle manifest).
 - `stream.ts` — streaming HTML writer. Writes the shell (`<head>`, styles, bundle stylesheets), then streams root elements in document order. At `TheFold`, injects the dehydrated fetch cache and per-route `<script>` tags from `routeAssets.scripts`. Below-fold roots get inline `hydrateRootsUpTo` pipe calls. Handles late data arrivals and timeouts.
-- `router.ts` — route matching via `path-to-regexp`. Routes are defined as `SluiceRoutes` — a map of route names to `{ path, page }` where `page` is a module path string (not a class reference). `createRouter` compiles patterns and returns `matchRoute(path) => { routeName, page, params }`.
+- `router.ts` — route matching via `path-to-regexp`. Routes are defined in a `SiteConfig` — a map of route names to `{ path, handler, method? }` plus optional global middleware. `createRouter` compiles patterns and returns `matchRoute(path, method) => RouteMatch | null`.
 - `Root.tsx` — pass-through component; `when` is read directly from props by the stream writer.
 - `TheFold.tsx` — null-rendering sentinel; identifies the above/below-fold boundary.
 - `fetch/` — isomorphic fetch subsystem. Two audiences: consumers import `fetch` from `index.ts`; the framework uses `Fetch.serverInit()` / `Fetch.clientInit()`, `Fetch.fetch()`, and `Fetch.getCache()` from `Fetch.ts`. `Fetch.serverInit(urlPrefix)` creates a per-request `FetchCache` in RLS and sets `urlPrefix` for resolving relative URLs to absolute (required server-side since `fetch('/path')` has no implicit origin). `urlPrefix` is optional in config — defaults to the origin from `req.url`. `Fetch.clientInit()` creates the cache without a prefix (browser resolves relative URLs natively). GETs are cached, deduplicated, and dehydrated; non-GETs pass through with `urlPrefix` applied. `FetchCache` exposes `server()` and `client()` accessor objects with environment-specific APIs. `nativeFetch.ts` provides an indirection over `globalThis.fetch` for testability.
@@ -185,18 +232,35 @@ Server-side error handling: `Fetch.fetch()` fires the native fetch as a fire-and
 ### Cross-root communication
 Stores are scoped to React context trees. `broadcast` is a minimal escape hatch: send a message to all mounted instances of a store type from anywhere. Fire-and-forget, no request/response semantics.
 
+### sluice.config.ts
+
+User configuration for the CLI. Points to the routes file and provides server/build options:
+
+```ts
+import type { SluiceConfig } from 'sluice/config';
+
+export default {
+  routes: './src/routes.ts',        // path to SiteConfig file (routes + middleware)
+  server: {
+    urlPrefix: 'http://localhost:3000',  // optional, defaults to req.url origin
+    renderTimeout: 20_000,               // optional
+  },
+  build: {
+    outDir: './dist',                    // optional, default 'dist'
+    cdnPrefix: undefined,                // optional, for CDN prod mode
+  },
+} satisfies SluiceConfig;
+```
+
+The routes file (`SiteConfig`) is a separate concern from the framework config — the bundler only needs the routes file path to follow handler imports.
+
 ### Demo site
-Run with `bun src/demo/server.tsx`. Routes are defined in `demo/routes.ts` as string page paths (e.g. `'./DemoPage'`), typed with `SluiceRoutes`. The server calls `bundle()` then `createSluiceServer()`. Exercises sluice + isomorphic-stores together with Zustand stores, streaming roots, TheFold, late data arrivals, routing, and cross-root broadcast.
+Run with `cd packages/demo && bun src/server.tsx`. Routes are defined in `src/routes.ts` as string handler paths (e.g. `'./DemoPage'`), typed with `SiteConfig`. The server calls `bundle()` then `createSluiceServer()`. Exercises sluice + isomorphic-stores together with Zustand stores, streaming roots, TheFold, late data arrivals, routing, and cross-root broadcast.
 
 ### TODOs
 
 #### overall
 - come up with a better name
-- split into multiple packages:
-  - ssr framework itself, including stores helpers
-  - vite plugin
-  - demo site
-  - documentation site (todo)
 
 #### sluice (SSR framework)
 - HMR for the client bundle in the dev server — currently requires a restart to pick up changes; `Bun.build` has no watch mode, so this would need to be built on top of it
@@ -211,6 +275,7 @@ Run with `bun src/demo/server.tsx`. Routes are defined in `demo/routes.ts` as st
 - `failArrival`: when the stream ends, send a pipe call that tells the client to reject any still-pending `rootDomNodeDfds`. Without this, timed-out roots (server wrote `hydrateRootsUpTo` but the DOM node was never rendered) leave the client hanging — `CLIENT_READY_DFD` never resolves. The server should write this as the last thing before closing the stream in both `finish()` and the error `.catch` path in `stream.ts`.
 - filter out extraneous middleware methods when wiring up the chain, as an extra layer of safety (maybe as a method on MiddlewareDefinition?)
 - redo the middleware types to be less complex
+- Object.freeze on ctx?
 
 #### isomorphic-stores
 - Add a mechanism for adapters to integrate the isomorphic-stores `StoreProvider` with a framework-native provider — e.g. so the Redux adapter can render a react-redux `<Provider store={store}>` alongside the isomorphic-stores context
@@ -223,10 +288,9 @@ Run with `bun src/demo/server.tsx`. Routes are defined in `demo/routes.ts` as st
 - Add a demo of `nativeStore` access in `DemoPage`: a component that reads state imperatively via `instance.nativeStore.getState()` on button click
 
 #### Notes for the future
-- **`sluice dev`**: Vite dev server with HMR, composed with sluice's SSR handler. Replaces the current `Bun.serve()` setup in `demo/server.tsx`. User provides `sluice.config.ts` with routes and API endpoints; sluice handles HTTP serving.
+- **`sluice dev`**: Vite dev server with HMR, composed with sluice's SSR handler. Replaces the current `Bun.serve()` setup in `demo/server.tsx`. User provides `sluice.config.ts` with routes and API endpoints; sluice handles HTTP serving. See `specs/vite-dev-server.md`.
 - **`sluice build`**: Production build — writes bundles to disk + `manifest.json`. The production server reads the manifest and serves bundles from disk (or delegates to a CDN via a `cdnPrefix` config).
-- **`sluice start`** (or similar): Production server — reads pre-built manifest, serves SSR + static bundles via Node HTTP. Three bundle serving modes: (1) dev — in-memory via Vite, (2) local prod — from disk, (3) CDN — manifest only, bundles served externally.
-- **`sluice.config.ts`**: Routes, API endpoints, urlPrefix (optional override for server-side fetch origin; defaults to `req.url` origin), build output dir, cdnPrefix. Replaces the user-owned server file. The current `demo/server.tsx` pattern (user calls `createSluiceServer` + `Bun.serve`) becomes an internal implementation detail.
+- **`sluice start`** (or similar): Production server — reads pre-built manifest, serves SSR + static bundles via Node HTTP. Two bundle serving modes: (1) local prod — from disk, (2) CDN — manifest only, bundles served externally.
 - **API routes**: Support non-SSR route handlers (JSON endpoints, redirects) in the routes config so the full app can be expressed without a custom server.
 - **ALS requirement**: Sluice currently requires `AsyncLocalStorage` (via `requestLocal.ts`). This limits deployment to Node, Bun, and Deno. Edge runtimes (Cloudflare Workers, Vercel Edge) don't support ALS. If edge support is needed, RLS would need an alternative implementation.
 
@@ -235,7 +299,7 @@ Run with `bun src/demo/server.tsx`. Routes are defined in `demo/routes.ts` as st
 Bun is the current dev runtime. Use it for running, building, and installing — but sluice framework code itself must not depend on Bun-specific APIs (the framework will support Node/Deno in production).
 
 - Use `bun <file>` instead of `node <file>` or `ts-node <file>`
-- Use `vitest` for testing (not `bun test` or `jest`). Config is in `vitest.config.ts`. Tests needing DOM globals use `// @vitest-environment jsdom` per-file annotation.
+- Use `vitest` for testing (not `bun test` or `jest`). Config is in `packages/sluice/vitest.config.ts`. Tests needing DOM globals use `// @vitest-environment jsdom` per-file annotation.
 - Use `bun build <file.html|file.ts|file.css>` instead of `webpack` or `esbuild`
 - Use `bun install` instead of `npm install` or `yarn install` or `pnpm install`
 - Use `bun run <script>` instead of `npm run <script>` or `yarn run <script>` or `pnpm run <script>`
@@ -254,7 +318,7 @@ Bun is the current dev runtime. Use it for running, building, and installing —
 
 ## Testing
 
-Use `vitest` to run tests. Config is in `vitest.config.ts` (defines `@` path alias and `SERVER_SIDE`).
+Use `vitest` to run tests from within `packages/sluice/`. Config is in `packages/sluice/vitest.config.ts` (defines `@` path alias and `SERVER_SIDE`).
 
 ```ts#index.test.ts
 import { test, expect } from "vitest";
@@ -273,81 +337,7 @@ import { test, expect } from "vitest";
 
 ### E2E tests
 
-E2E tests use Playwright. Config is in `playwright.config.ts`. Tests are in `e2e/`. Run with `bunx playwright test`.
+E2E tests use Playwright. Config is in `packages/demo/playwright.config.ts`. Tests are in `packages/demo/e2e/`. Run with `cd packages/demo && bunx playwright test`.
 
 - `e2e/helpers/fixtures.ts` provides a custom `test` fixture that patches `page.goto` to wait for sluice client hydration (`CLIENT_READY_DFD`) by default. Import `test` and `expect` from `./helpers/fixtures` in e2e tests.
 - Card components render a `data-card` attribute with the card title for stable test locators (e.g. `page.locator('[data-card="User Profile"]')`).
-
-## Frontend
-
-Use HTML imports with `Bun.serve()`. Don't use `vite`. HTML imports fully support React, CSS, Tailwind.
-
-Server:
-
-```ts#index.ts
-import index from "./index.html"
-
-Bun.serve({
-  routes: {
-    "/": index,
-    "/api/users/:id": {
-      GET: (req) => {
-        return new Response(JSON.stringify({ id: req.params.id }));
-      },
-    },
-  },
-  // optional websocket support
-  websocket: {
-    open: (ws) => {
-      ws.send("Hello, world!");
-    },
-    message: (ws, message) => {
-      ws.send(message);
-    },
-    close: (ws) => {
-      // handle close
-    }
-  },
-  development: {
-    hmr: true,
-    console: true,
-  }
-})
-```
-
-HTML files can import .tsx, .jsx or .js files directly and Bun's bundler will transpile & bundle automatically. `<link>` tags can point to stylesheets and Bun's CSS bundler will bundle.
-
-```html#index.html
-<html>
-  <body>
-    <h1>Hello, world!</h1>
-    <script type="module" src="./frontend.tsx"></script>
-  </body>
-</html>
-```
-
-With the following `frontend.tsx`:
-
-```tsx#frontend.tsx
-import React from "react";
-import { createRoot } from "react-dom/client";
-
-// import .css files directly and it works
-import './index.css';
-
-const root = createRoot(document.body);
-
-export default function Frontend() {
-  return <h1>Hello, world!</h1>;
-}
-
-root.render(<Frontend />);
-```
-
-Then, run index.ts
-
-```sh
-bun --hot ./index.ts
-```
-
-For more information, read the Bun API docs in `node_modules/bun-types/docs/**.mdx`.

@@ -1,0 +1,45 @@
+{
+  "name": "sluice",
+  "private": true,
+  "bin": {
+    "sluice": "./src/sluice/cli.ts"
+  },
+  "exports": {
+    ".": "./src/stores/index.ts",
+    "./adapter": "./src/stores/adapter.ts",
+    "./provider": "./src/stores/provider.tsx",
+    "./page": "./src/sluice/Page.ts",
+    "./middleware": "./src/sluice/Middleware.ts",
+    "./endpoint": "./src/sluice/Endpoint.ts",
+    "./components": "./src/sluice/core/components/index.ts",
+    "./fetch": "./src/sluice/core/fetch/index.ts",
+    "./cookies": "./src/sluice/util/cookies.ts",
+    "./server": "./src/sluice/server/index.ts",
+    "./bundler": "./src/sluice/viteBundler.ts",
+    "./config": "./src/sluice/config.ts"
+  },
+  "scripts": {
+    "test": "bunx vitest run",
+    "typecheck": "bunx tsc --noEmit"
+  },
+  "peerDependencies": {
+    "typescript": "^5",
+    "react": "^19.2.4"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.2",
+    "@types/bun": "latest",
+    "@types/cookie": "^1.0.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "jsdom": "^29.0.0",
+    "sluice-store-adapters": "workspace:*",
+    "react-dom": "^19.2.4",
+    "vitest": "^4.1.0",
+    "vite": "^8.0.0"
+  },
+  "dependencies": {
+    "cookie": "^1.1.1",
+    "path-to-regexp": "^8.3.0"
+  }
+}

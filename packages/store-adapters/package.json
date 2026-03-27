@@ -1,0 +1,16 @@
+{
+  "name": "sluice-store-adapters",
+  "private": true,
+  "exports": {
+    "./zustand": "./src/zustand.ts",
+    "./redux": "./src/redux.ts"
+  },
+  "dependencies": {
+    "sluice": "workspace:*",
+    "zustand": "^5.0.11",
+    "redux": "^5.0.1"
+  },
+  "peerDependencies": {
+    "react": "^19.2.4"
+  }
+}
