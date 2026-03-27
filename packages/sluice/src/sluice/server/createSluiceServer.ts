@@ -1,6 +1,7 @@
 import type {BundleResult} from "../bundle";
 import {createRouter, type SiteConfig} from "./router";
 import {handleRoute} from "./handleRoute";
+import {importModule} from "../util/importModule";
 
 interface SluiceServerConfig {
   siteConfigPath: string;
@@ -23,7 +24,7 @@ export async function createSluiceServer(config: SluiceServerConfig): Promise<Sl
       },
     };
   }));
-  const site: SiteConfig = (await import(config.siteConfigPath)).default;
+  const site = await importModule<SiteConfig>(config.siteConfigPath);
   const { routes } = site;
   const router = createRouter(routes);
   const { handlersByRoute } = config.bundleResult;

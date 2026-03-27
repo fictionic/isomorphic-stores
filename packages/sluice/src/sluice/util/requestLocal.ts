@@ -1,10 +1,8 @@
-import { isServer } from '../env';
-
 const fallback = new Map<symbol, any>();
 
 let als: { getStore(): Map<symbol, any> | undefined; run<R>(store: Map<symbol, any>, fn: () => R): R } | null = null;
-if (isServer()) {
-  const { AsyncLocalStorage } = require('node:async_hooks') as typeof import('node:async_hooks');
+if (IS_SERVER) {
+  const { AsyncLocalStorage } = await import('node:async_hooks');
   als = new AsyncLocalStorage<Map<symbol, any>>();
 }
 

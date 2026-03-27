@@ -1,2 +1,4 @@
 #!/usr/bin/env node
-import '../dist/cli.js';
+import { createJiti } from 'jiti';
+const jiti = createJiti(import.meta.url, { jsx: true });
+await jiti.import('../src/sluice/cli.ts');

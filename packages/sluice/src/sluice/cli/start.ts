@@ -6,6 +6,7 @@ import type { BundleManifest, BundleResult } from '../bundle';
 import type { SiteConfig } from '../server/router';
 import type { RouteHandlerDefinition } from '../core/handler/RouteHandler';
 import { createSluiceServer } from '../server/createSluiceServer';
+import { importModule } from '../util/importModule';
 
 async function loadBundleResult(outDir: string, siteConfigPath: string): Promise<BundleResult> {
   const manifestPath = path.resolve(outDir, 'manifest.json');
@@ -23,12 +24,12 @@ async function loadBundleResult(outDir: string, siteConfigPath: string): Promise
   );
 
   // Import handler modules from the site config
-  const site: SiteConfig = (await import(siteConfigPath)).default;
+  const site = await importModule<SiteConfig>(siteConfigPath);
   const rootDir = path.dirname(siteConfigPath);
   const handlersByRoute: Record<string, RouteHandlerDefinition<any, any, any>> = {};
   await Promise.all(
     Object.entries(site.routes).map(async ([routeName, routeConfig]) => {
-      const handler = (await import(path.resolve(rootDir, routeConfig.handler))).default;
+      const handler = await importModule<RouteHandlerDefinition<any, any, any>>(path.resolve(rootDir, routeConfig.handler));
       handlersByRoute[routeName] = handler;
     })
   );

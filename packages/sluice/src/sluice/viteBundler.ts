@@ -1,23 +1,23 @@
 import path from 'node:path';
 import { writeFile, mkdir, rm } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
 import { build } from 'vite';
 import type { BundleManifest, BundleResult } from './bundle';
 import type { SiteConfig } from './server/router';
 import type { RouteHandlerDefinition } from './core/handler/RouteHandler';
+import { importModule } from './util/importModule';
+import { makeEntrypoint } from './entrypoint';
 
 const BUNDLES_DIR = 'bundles';
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export async function bundle(siteConfigModulePath: string): Promise<BundleResult> {
   await mkdir(BUNDLES_DIR, { recursive: true });
-  const site: SiteConfig = (await import(siteConfigModulePath)).default;
+  const site = await importModule<SiteConfig>(siteConfigModulePath);
   const rootDir = path.dirname(siteConfigModulePath);
 
   const handlersByRoute: Record<string, RouteHandlerDefinition<any, any, any>> = {};
   const input: Record<string, string> = {};
   await Promise.all(Object.entries(site.routes).map(async ([routeName, routeConfig]) => {
-    const handler: RouteHandlerDefinition<any, any, any> = (await import(path.resolve(rootDir, routeConfig.handler))).default;
+    const handler = await importModule<RouteHandlerDefinition<any, any, any>>(path.resolve(rootDir, routeConfig.handler));
     handlersByRoute[routeName] = handler;
     if (handler.type === 'page') {
       const entrypointPath = path.resolve(BUNDLES_DIR, `route-${routeName}.js`);
@@ -37,7 +37,7 @@ export async function bundle(siteConfigModulePath: string): Promise<BundleResult
         },
       },
       define: {
-        IS_CLIENT: 'true',
+        IS_SERVER: 'false',
       },
       build: {
         write: false,
@@ -88,14 +88,3 @@ export async function bundle(siteConfigModulePath: string): Promise<BundleResult
   }
 }
 
-function makeEntrypoint(handler: string, routePath: string, routesDir: string, siteConfigPath: string) {
-  const q = (s: string) => JSON.stringify(s);
-  const absolutePagePath = path.resolve(routesDir, handler);
-  const bootstrapPath = path.resolve(__dirname, 'client/bootstrap.ts');
-  return (
-`import siteConfig from ${q(siteConfigPath)};
-import Page from ${q(absolutePagePath)};
-import { bootstrap } from ${q(bootstrapPath)};
-bootstrap(Page, ${q(routePath)}, siteConfig.middleware ?? []);`
-  );
-}

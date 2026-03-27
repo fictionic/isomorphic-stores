@@ -1,15 +1,15 @@
 {
   "DemoPage": {
     "scripts": [
-      "bundles/bootstrap-C5iUi7Ml.js",
-      "bundles/DemoPage-Pw0gjIu5.js"
+      "bundles/bootstrap-BfRR7LB8.js",
+      "bundles/DemoPage-Dn1VuECw.js"
     ],
     "stylesheets": []
   },
   "LinkPage": {
     "scripts": [
-      "bundles/bootstrap-C5iUi7Ml.js",
-      "bundles/LinkPage-Dms4KOrI.js"
+      "bundles/bootstrap-BfRR7LB8.js",
+      "bundles/LinkPage-BZT9smfY.js"
     ],
     "stylesheets": []
   }

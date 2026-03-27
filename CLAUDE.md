@@ -20,12 +20,12 @@ This is a Bun workspace monorepo with three packages:
 ```
 package.json                # workspace root
 tsconfig.base.json          # shared compiler options
-bunfig.toml                 # defines SERVER_SIDE=true for Bun runtime
+bunfig.toml
 packages/
 ├── sluice/                 # SSR framework + isomorphic-stores
 │   ├── package.json        # name: "sluice"
 │   ├── tsconfig.json       # extends ../../tsconfig.base.json
-│   ├── vitest.config.ts    # @/ alias + SERVER_SIDE define
+│   ├── vitest.config.ts    # @/ alias
 │   └── src/
 │       ├── sluice/         # SSR framework
 │       └── stores/         # isomorphic-stores library
@@ -68,14 +68,21 @@ Each package uses `@/*` as a path alias to its own `src/` directory.
 ```
 src/sluice/
 ├── index.ts         # root barrel: re-exports handler APIs + components
+├── env.ts           # isServer() / IS_SERVER environment detection
+├── entrypoint.ts    # shared client entry code generator (used by viteBundler + dev plugin)
 ├── bundle.ts        # bundler-agnostic types (RouteAssets, BundleManifest, BundleResult)
 ├── bunBundler.ts    # Bun-specific bundler (temporary)
 ├── viteBundler.ts   # Vite-based bundler; produces BundleResult via vite.build()
 ├── config.ts        # SluiceConfig type for sluice.config.ts
-├── cli.ts           # CLI entry point (sluice build, sluice start)
+├── cli.ts           # CLI entry point (sluice build, sluice start, sluice dev)
 ├── cli/
 │   ├── build.ts     # sluice build: bundle + write to disk
-│   └── start.ts     # sluice start: read manifest + serve
+│   ├── start.ts     # sluice start: read manifest + serve
+│   └── dev.ts       # sluice dev: Vite dev server + SSR
+├── dev/
+│   ├── createDevServer.ts   # orchestrates Vite + Node HTTP server
+│   ├── sluiceVitePlugin.ts  # Vite plugin: virtual entry modules per route
+│   └── devRouteAssets.ts    # generates RouteAssets pointing to virtual modules
 ├── constants.ts     # DOM attribute names
 ├── core/
 │   ├── RequestContext.ts   # server-side escape hatch: raw Request + cookies; RLS-backed
@@ -117,6 +124,7 @@ src/sluice/
 └── util/
     ├── ServerClientPipe.ts  # generic typed server→client pipe factory
     ├── cookies.ts           # isomorphic cookie get/set util
+    ├── importModule.ts      # jiti wrapper for loading .ts/.tsx at runtime under Node
     └── requestLocal.ts
 
 src/stores/
@@ -217,6 +225,27 @@ Three layers:
 - `bundle.ts` — bundler-agnostic types. `RouteAssets = { scripts, stylesheets }`, `BundleManifest = { [routeName]: RouteAssets }`, `BundleResult = { manifest, bundleContents }`. This is the contract between bundler implementations and the framework.
 - `bunBundler.ts` — Bun-specific bundler implementation. Generates per-route entry files in a `bundles/` directory, builds with `Bun.build` (`splitting: true`, `metafile: true`), correlates metafile outputs back to route names, and produces a `BundleResult`. Temporary — will be replaced by a Vite plugin.
 
+### Dev server architecture (`sluice dev`)
+
+`sluice dev` starts a Vite dev server in middleware mode composed with sluice's SSR handler. Run with `cd packages/demo && node packages/sluice/bin/sluice.js dev` (or via the `sluice` bin).
+
+**Two module loaders, separated by concern:**
+
+- **jiti** (`util/importModule.ts`): Used only for CLI bootstrap and loading `sluice.config.ts` (pure config, no JSX). The CLI entry (`bin/sluice.js`) uses jiti to load `cli.ts` without a build step, making the CLI work under Node without Bun.
+- **Vite `ssrLoadModule`**: Used for everything in the request path — the site config (`routes.ts`, which may import `.tsx` middleware), route handlers, and `handleRoute.ts` itself. This is critical: all code in the request path must go through the same module loader so singletons (RLS/AsyncLocalStorage, fetch cache) share one instance.
+
+**Why not jiti for everything?** jiti's Babel-based JSX transform uses classic mode (`React.createElement`), but user `.tsx` files use the automatic JSX runtime (no `import React`). Vite's SSR pipeline uses esbuild which handles this correctly, plus provides path alias resolution, HMR invalidation, and proper source maps.
+
+**Why not `ssrLoadModule` for everything?** Chicken-and-egg: we need `sluice.config.ts` to know the routes file path before Vite is created. jiti handles this one-time config load.
+
+**Singleton problem and `ssr.noExternal`:** If sluice framework code were loaded via Node's native `import()` (Vite's default for `node_modules` in SSR) while user code goes through `ssrLoadModule`, they'd get separate module instances — separate `AsyncLocalStorage`, separate fetch caches, etc. Setting `ssr.noExternal: ['sluice', 'sluice-store-adapters']` forces Vite to process framework code through its own module graph, so `import { ... } from 'sluice'` in user code resolves to the same modules that `handleRoute.ts` uses. This matches what SvelteKit, Remix, Astro, and Nuxt all do.
+
+**Per-request loading:** `handleRoute` and the route handler are loaded via `ssrLoadModule` on every request. Vite caches modules and only re-evaluates when files change, so this is effectively free — but it means server-side code changes take effect on the next request without restarting.
+
+**Client-side virtual entries:** The `sluiceVitePlugin` registers virtual modules (`virtual:sluice/route-<name>`) that generate per-route client entry code (imports the page + bootstrap). In dev, `devRouteAssets.ts` produces `RouteAssets` pointing to these virtual module URLs (`/@id/__x00__virtual:sluice/route-<name>`), which Vite serves with HMR support.
+
+**Environment detection:** `env.ts` exports `isServer()`. All bundler configs define `IS_SERVER` — `'true'` for server builds, `'false'` for client builds. In the Vite dev server, this is set via top-level `define` (server default) and overridden in `environments.client.define`. `globals.d.ts` declares `IS_SERVER` globally so consumers can use it directly for dead code elimination (e.g. `if (IS_SERVER) { await import('node:...') }`) without needing `declare const`. The `isServer()` function wraps this for ergonomic runtime checks.
+
 **SSR correctness note:** Zustand's `useStore` uses `useSyncExternalStore` with `getInitialState()` as the server snapshot, which returns state at construction time — before `waitFor` resolves. The Zustand adapter overrides `store.getInitialState = store.getState` so `renderToString` (called after `whenReady`) sees the resolved async values.
 
 ### Fetch subsystem
@@ -260,7 +289,7 @@ export default {
 The routes file (`SiteConfig`) is a separate concern from the framework config — the bundler only needs the routes file path to follow handler imports.
 
 ### Demo site
-Run with `cd packages/demo && bun src/server.tsx`. Routes are defined in `src/routes.ts` as string handler paths (e.g. `'./DemoPage'`), typed with `SiteConfig`. The server calls `bundle()` then `createSluiceServer()`. Exercises sluice + isomorphic-stores together with Zustand stores, streaming roots, TheFold, late data arrivals, routing, and cross-root broadcast.
+Run with `cd packages/demo && sluice dev` (or `node ../../packages/sluice/bin/sluice.js dev`). The legacy path `bun src/server.tsx` still works (calls `bundle()` then `createSluiceServer()`). Routes are defined in `src/routes.ts` as string handler paths (e.g. `'./DemoPage'`), typed with `SiteConfig`. Exercises sluice + isomorphic-stores together with Zustand stores, streaming roots, TheFold, late data arrivals, routing, and cross-root broadcast.
 
 ### TODOs
 
@@ -268,7 +297,7 @@ Run with `cd packages/demo && bun src/server.tsx`. Routes are defined in `src/ro
 - come up with a better name
 
 #### sluice (SSR framework)
-- HMR for the client bundle in the dev server — currently requires a restart to pick up changes; `Bun.build` has no watch mode, so this would need to be built on top of it
+- Verify client-side HMR works end-to-end in `sluice dev` (virtual entry modules are served by Vite with HMR support, but this hasn't been tested in a browser yet)
 - Support pre-building the client bundle as a separate step (for prod), distinct from on-the-fly bundling at dev server startup
 - Client-side transitions (SPA navigation) — `navigateTo()` function that lazy-loads the target route's page entry, unmounts the current page, and mounts the new one without a full page reload
 - API to allow page authors to transport arbitrary server-side data down to the client
@@ -293,7 +322,7 @@ Run with `cd packages/demo && bun src/server.tsx`. Routes are defined in `src/ro
 - Add a demo of `nativeStore` access in `DemoPage`: a component that reads state imperatively via `instance.nativeStore.getState()` on button click
 
 #### Notes for the future
-- **`sluice dev`**: Vite dev server with HMR, composed with sluice's SSR handler. Replaces the current `Bun.serve()` setup in `demo/server.tsx`. User provides `sluice.config.ts` with routes and API endpoints; sluice handles HTTP serving. See `specs/vite-dev-server.md`.
+- **`sluice dev`**: Implemented. Vite dev server with HMR, composed with sluice's SSR handler. See "Dev server architecture" section above and `specs/vite-dev-server.md`.
 - **`sluice build`**: Production build — writes bundles to disk + `manifest.json`. The production server reads the manifest and serves bundles from disk (or delegates to a CDN via a `cdnPrefix` config).
 - **`sluice start`** (or similar): Production server — reads pre-built manifest, serves SSR + static bundles via Node HTTP. Two bundle serving modes: (1) local prod — from disk, (2) CDN — manifest only, bundles served externally.
 - **API routes**: Support non-SSR route handlers (JSON endpoints, redirects) in the routes config so the full app can be expressed without a custom server.
@@ -323,7 +352,7 @@ Bun is the current dev runtime. Use it for running, building, and installing —
 
 ## Testing
 
-Use `vitest` to run tests from within `packages/sluice/`. Config is in `packages/sluice/vitest.config.ts` (defines `@` path alias and `SERVER_SIDE`).
+Use `vitest` to run tests from within `packages/sluice/`. Config is in `packages/sluice/vitest.config.ts` (defines `@` path alias).
 
 ```ts#index.test.ts
 import { test, expect } from "vitest";
