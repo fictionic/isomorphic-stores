@@ -29,7 +29,7 @@ export const getAdapter = <State extends object>(): Adapter<State, ReduxStore<St
     return {
       useSelector: <U>(selector: (s: State) => U): U => (
         useSyncExternalStore(
-          (callback) => getStore().subscribe(callback),
+          (callback: () => void) => getStore().subscribe(callback),
           () => selector(getStore().getState()),
         )
       ),

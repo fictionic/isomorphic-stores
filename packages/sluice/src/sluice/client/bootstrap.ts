@@ -5,31 +5,30 @@ import { PAGE_ELEMENT_TOKEN_ID_ATTR, PAGE_ROOT_ELEMENT_ATTR } from '../constants
 import { hydrateRoot } from 'react-dom/client';
 import { global } from './globals';
 import {Fetch} from '../core/fetch/Fetch';
-import {match} from 'path-to-regexp';
 import type {PageDefinition} from '../core/handler/Page';
 import {ResponderConfig} from '../core/handler/ResponderConfig';
 import {createHandlerChain} from '../core/handler/chain';
-import type {MiddlewareDefinition} from '../core/handler/Middleware';
 import {createCtx} from '../core/handler/RouteHandlerCtx';
 import {SluiceRequest} from '../core/SluiceRequest';
+import {createRouter, type SiteConfig} from '../server/router';
 
 global.CLIENT_READY_DFD = Promise.withResolvers<void>();
 
-export async function bootstrap(def: PageDefinition, path: string, middleware: MiddlewareDefinition[]): Promise<void> {
-  const routeResult = match(path)(location.pathname);
-  if (!routeResult) {
+export async function bootstrap(pageDef: PageDefinition, site: SiteConfig): Promise<void> {
+  const router = createRouter(site.routes);
+  const route = router.matchRoute(location.pathname, 'GET');
+  if (!route) {
     console.error("no route!");
     return;
   }
-  const { params: routeParams } = routeResult;
-  const req = SluiceRequest.client(routeParams);
+  const req = SluiceRequest.clientInit(route.params);
   Fetch.clientInit();
   const readablePipe = SluicePipe.reader();
   const fetchCache = (readablePipe.readValue(FETCH_CACHE_KEY) ?? {});
   Fetch.getCache().client().rehydrate(fetchCache);
   const config = new ResponderConfig();
-  const ctx = createCtx(config, req);
-  const page = createHandlerChain('page', def, middleware, config, ctx);
+  const ctx = createCtx(config, req, route);
+  const page = createHandlerChain('page', pageDef, site.middleware ?? [], config, ctx);
   await page.getRouteDirective(); // just for data fetching, for now
 
   const tokens = tokenizeElements(page.getElements());

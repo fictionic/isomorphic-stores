@@ -1,3 +1,4 @@
+import http from 'node:http';
 import path from 'node:path';
 import { readFile, readdir } from 'node:fs/promises';
 import type { SluiceConfig } from '../config';
@@ -7,6 +8,7 @@ import type { SiteConfig } from '../server/router';
 import type { RouteHandlerDefinition } from '../core/handler/RouteHandler';
 import { createSluiceServer } from '../server/createSluiceServer';
 import { importModule } from '../util/importModule';
+import { toWebRequest, sendWebResponse } from '../server/nodeHttp';
 
 async function loadBundleResult(outDir: string, siteConfigPath: string): Promise<BundleResult> {
   const manifestPath = path.resolve(outDir, 'manifest.json');
@@ -43,17 +45,30 @@ export async function runStart(config: SluiceConfig) {
 
   const bundleResult = await loadBundleResult(outDir, routesPath);
 
+  const port = config.server?.port ?? 3000;
+  const urlPrefix = config.server?.urlPrefix ?? `http://localhost:${port}`;
+
   const sluiceServer = await createSluiceServer({
     siteConfigPath: routesPath,
     bundleResult,
-    urlPrefix: config.server?.urlPrefix,
+    urlPrefix,
     renderTimeout: config.server?.renderTimeout,
   });
 
-  Bun.serve({
-    routes: sluiceServer.routes,
-    fetch: sluiceServer.serve,
+  const server = http.createServer(async (nodeReq, nodeRes) => {
+    try {
+      const url = new URL(nodeReq.url ?? '/', urlPrefix);
+      const request = toWebRequest(nodeReq, url);
+      const response = await sluiceServer.serve(request);
+      await sendWebResponse(nodeRes, response);
+    } catch (e) {
+      console.error('[sluice]', e);
+      nodeRes.statusCode = 500;
+      nodeRes.end();
+    }
   });
 
-  console.log('[sluice] Server started');
+  server.listen(port, () => {
+    console.log(`[sluice] Server started at ${urlPrefix}`);
+  });
 }

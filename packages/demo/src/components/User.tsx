@@ -16,7 +16,7 @@ export function User() {
         <>
           <code>waitFor</code> registers async promises that block <code>whenReady</code> — the SSR
           framework holds the response until resolved. Username and email are fetched server-side and
-          streamed into the HTML.
+          streamed into the HTML. FOO BAR
         </>
       }
     >

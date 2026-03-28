@@ -21,7 +21,7 @@ export async function bundle(siteConfigModulePath: string): Promise<BundleResult
     handlersByRoute[routeName] = handler;
     if (handler.type === 'page') {
       const entrypointPath = path.resolve(BUNDLES_DIR, `route-${routeName}.js`);
-      await writeFile(entrypointPath, makeEntrypoint(routeConfig.handler, routeConfig.path, rootDir, siteConfigModulePath));
+      await writeFile(entrypointPath, makeEntrypoint(routeConfig.handler, rootDir, siteConfigModulePath));
       input[routeName] = entrypointPath;
     }
   }));

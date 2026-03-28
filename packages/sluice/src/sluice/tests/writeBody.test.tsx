@@ -22,8 +22,11 @@ function simplePage(elements: React.ReactElement[]): StandardizedPage {
     getRouteDirective() { return { status: 200 } },
     getElements() { return elements; },
     getTitle() { return 'Test'; },
-    getHeadStylesheets() { return []; },
+    getSystemStylesheets() { return []; },
+    getStylesheets() { return []; },
     getHeaders() { return []; },
+    getSystemScripts() { return []; },
+    getScripts() { return []; },
   };
 }
 

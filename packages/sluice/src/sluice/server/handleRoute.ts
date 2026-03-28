@@ -1,7 +1,5 @@
-import type {ParamData} from "path-to-regexp";
 import type {RouteHandlerDefinition, RouteHandlerType} from "../core/handler/RouteHandler";
 import type {MiddlewareDefinition} from "../core/handler/Middleware";
-import type {RouteAssets} from "../bundle";
 import {startRequest} from "../util/requestLocal";
 import {ServerCookies} from "./ServerCookies";
 import {Fetch} from "../core/fetch/Fetch";
@@ -11,28 +9,28 @@ import {handlePage} from "./handlePage";
 import {handleEndpoint} from "./handleEndpoint";
 import {SluiceRequest} from "../core/SluiceRequest";
 import {createCtx} from "../core/handler/RouteHandlerCtx";
+import type {RouteMatch} from "./router";
 
 interface Options {
-  routeAssets: RouteAssets;
   urlPrefix?: string;
   renderTimeout?: number;
 };
 
 export async function handleRoute<T extends RouteHandlerType>(
   type: T,
-  nativeRequest: Request,
-  def: RouteHandlerDefinition<T, any, any>,
-  routeParams: ParamData,
+  route: RouteMatch,
+  routeHandlerDef: RouteHandlerDefinition<T, any, any>,
   globalMiddleware: MiddlewareDefinition[],
+  nativeRequest: Request,
   options: Options,
 ) {
   const response = await startRequest(async () => {
-    const req = SluiceRequest.server(nativeRequest, routeParams);
+    const req = SluiceRequest.serverInit(nativeRequest, route.params);
     const cookies = new ServerCookies(nativeRequest);
     Fetch.serverInit(options.urlPrefix ?? new URL(nativeRequest.url).origin);
     const config = new ResponderConfig();
-    const ctx = createCtx(config, req);
-    const handler = createHandlerChain(type, def, globalMiddleware, config, ctx);
+    const ctx = createCtx(config, req, route);
+    const handler = createHandlerChain(type, routeHandlerDef, globalMiddleware, config, ctx);
     let statusCode: number;
     try {
       const directive = await handler.getRouteDirective();

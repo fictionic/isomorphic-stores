@@ -2,7 +2,9 @@
   "name": "sluice-demo",
   "private": true,
   "scripts": {
-    "dev": "bun src/server.tsx",
+    "dev": "sluice dev",
+    "build": "sluice build",
+    "start": "sluice start",
     "test:e2e": "bunx playwright test",
     "typecheck": "bunx tsc --noEmit"
   },

@@ -4,12 +4,12 @@ export class SluiceRequest {
   private url: URL;
   private routeParams: ParamData;
 
-  static server(req: Request, params: ParamData) {
+  static serverInit(req: Request, params: ParamData) {
     const url = new URL(req.url);
     return new SluiceRequest(url, params);
   }
 
-  static client(params: ParamData) {
+  static clientInit(params: ParamData) {
     const url = new URL(window.location.href);
     return new SluiceRequest(url, params);
   }

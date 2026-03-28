@@ -3,10 +3,21 @@ import {defineRouteHandler, type RouteHandler, type RouteHandlerDefinition, type
 
 export type Stylesheet = { href: string } | { text: string; type?: string; media?: string };
 
+export type Script = {
+  src?: string;
+  content?: string;
+  async?: boolean;
+  defer?: boolean;
+  type?: string;
+};
+
 export interface PageOptionalMethods {
   getTitle(): string;
-  getHeadStylesheets(): Stylesheet[];
-  // TODO: getScripts, getBodyClasses, getMetaTags, getLinkTags,
+  getSystemStylesheets(): Stylesheet[];
+  getStylesheets(): Stylesheet[];
+  getSystemScripts(): Script[],
+  getScripts(): Script[],
+  // TODO: getBodyClasses, getMetaTags, getLinkTags,
 }
 
 export interface PageRequiredMethods {
@@ -25,7 +36,10 @@ const PAGE_REQUIRED_METHOD_NAMES: (keyof PageRequiredMethods)[] = ['getElements'
 
 const PAGE_OPTIONAL_METHOD_DEFAULTS: PageOptionalMethods = {
   getTitle: () => '',
-  getHeadStylesheets: () => [],
+  getSystemStylesheets: () => [],
+  getStylesheets: () => [],
+  getSystemScripts: () => [],
+  getScripts: () => [],
 };
 
 export function definePage(init: PageInit): PageDefinition {

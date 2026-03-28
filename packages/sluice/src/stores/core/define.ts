@@ -89,7 +89,7 @@ export function defineIsoStore<Opts, State extends object, Message, NativeStoreI
 
     const whenReady = resolvePending(pending);
 
-    const didMountDfd = Promise.withResolvers();
+    const didMountDfd = Promise.withResolvers<void>();
     didMountDfd.promise.then(() => resolvePending(clientPending));
 
     return {

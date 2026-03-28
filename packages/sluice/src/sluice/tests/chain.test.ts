@@ -11,6 +11,7 @@ import type {RouteHandlerCtx} from '../core/handler/RouteHandlerCtx';
 const DUMMY_FNS: RouteHandlerCtx = {
   getConfig: () => undefined as any,
   getRequest: () => undefined as any,
+  getRoute: () => ({ getName: () => 'test', getParams: () => ({}) }),
 };
 
 interface TestOptionalMethods {
@@ -370,7 +371,7 @@ describe('createHandlerChain', () => {
       );
 
       const config = new ResponderConfig();
-      const ctx: RouteHandlerCtx = { getConfig: config.getValue, getRequest: () => undefined as any };
+      const ctx: RouteHandlerCtx = { getConfig: config.getValue, getRequest: () => undefined as any, getRoute: () => ({ getName: () => 'test', getParams: () => ({}) }) };
       createHandlerChain('page', def, [mw], config, ctx);
 
       expect(receivedFns).toHaveLength(2);

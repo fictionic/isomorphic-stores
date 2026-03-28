@@ -13,10 +13,11 @@
     "./cookies": "./src/sluice/util/cookies.ts",
     "./server": "./src/sluice/server/index.ts",
     "./bundler": "./src/sluice/viteBundler.ts",
-    "./config": "./src/sluice/config.ts"
+    "./config": "./src/sluice/config.ts",
+    "./globals": "./globals.d.ts"
   },
   "scripts": {
-"test": "bunx vitest run",
+    "test": "bunx vitest run",
     "typecheck": "bunx tsc --noEmit"
   },
   "peerDependencies": {
@@ -30,11 +31,12 @@
     "@types/cookie": "^1.0.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
     "jsdom": "^29.0.0",
-    "sluice-store-adapters": "workspace:*",
     "react-dom": "^19.2.4",
-    "vitest": "^4.1.0",
-    "vite": "^8.0.0"
+    "sluice-store-adapters": "workspace:*",
+    "vite": "^8.0.0",
+    "vitest": "^4.1.0"
   },
   "dependencies": {
     "cookie": "^1.1.1",

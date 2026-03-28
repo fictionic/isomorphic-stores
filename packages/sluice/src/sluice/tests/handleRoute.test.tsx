@@ -5,11 +5,11 @@ import { Root } from '@/sluice/core/components/Root';
 import { definePage, type PageInit } from '@/sluice/core/handler/Page';
 import { defineEndpoint, type EndpointInit } from '@/sluice/core/handler/Endpoint';
 import { setCookie } from '@/sluice/util/cookies';
-import type { RouteAssets } from '@/sluice/bundle';
+import type { RouteMatch } from '@/sluice/server/router';
 
 // --- Helpers ---
 
-const DEFAULT_ROUTE_ASSETS: RouteAssets = { scripts: ['/client.js'], stylesheets: [] };
+const DEFAULT_ROUTE: RouteMatch = { routeName: 'test', params: {}, handler: './TestPage', method: 'GET' };
 
 function makePage(directive: { status: number }, opts?: { onRouteDirective?: () => void }): PageInit {
   return () => ({
@@ -19,7 +19,7 @@ function makePage(directive: { status: number }, opts?: { onRouteDirective?: () 
     },
     getElements() { return [<Root><div>Hello</div></Root>]; },
     getTitle() { return 'Test'; },
-    getHeadStylesheets() { return []; },
+    getStylesheets() { return []; },
   });
 }
 
@@ -31,18 +31,16 @@ function makeEndpoint(directive: { status: number }, data: string): EndpointInit
   });
 }
 
-async function routePage(init: PageInit, options?: Partial<{ routeAssets: RouteAssets }>) {
+async function routePage(init: PageInit) {
   const req = new Request('http://localhost/');
-  return handleRoute('page', req, definePage(init), {}, [], {
-    routeAssets: options?.routeAssets ?? DEFAULT_ROUTE_ASSETS,
+  return handleRoute('page', DEFAULT_ROUTE, definePage(init), [], req, {
     urlPrefix: 'http://localhost',
   });
 }
 
 async function routeEndpoint(init: EndpointInit) {
   const req = new Request('http://localhost/');
-  return handleRoute('endpoint', req, defineEndpoint(init), {}, [], {
-    routeAssets: DEFAULT_ROUTE_ASSETS,
+  return handleRoute('endpoint', DEFAULT_ROUTE, defineEndpoint(init), [], req, {
     urlPrefix: 'http://localhost',
   });
 }
@@ -67,7 +65,7 @@ describe('handleRoute', () => {
       getRouteDirective() { throw new Error('boom'); },
       getElements() { return []; },
       getTitle() { return ''; },
-      getHeadStylesheets() { return []; },
+      getStylesheets() { return []; },
     });
 
     const response = await routePage(init);
@@ -90,7 +88,7 @@ describe('handleRoute', () => {
       },
       getElements() { return [<Root><div>Hello</div></Root>]; },
       getTitle() { return 'Test'; },
-      getHeadStylesheets() { return []; },
+      getStylesheets() { return []; },
     });
 
     const response = await routePage(init);

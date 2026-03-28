@@ -1,11 +1,9 @@
 import type {StandardizedPage, Stylesheet} from "../core/handler/Page";
 
-export function writeHeader(page: StandardizedPage, stylesheets: string[], write: (html: string) => void) {
+export function writeHeader(page: StandardizedPage, write: (html: string) => void) {
   write(`<title>${page.getTitle()}</title>`);
-  write(`${renderStylesheets(page.getHeadStylesheets())}`);
-  stylesheets.forEach(href => {
-    write(`<link rel="stylesheet" href="${href}">`);
-  });
+  write(`${renderStylesheets(page.getSystemStylesheets())}`);
+  write(`${renderStylesheets(page.getStylesheets())}`);
 }
 
 function renderStylesheets(stylesheets: Stylesheet[]): string {

@@ -6,7 +6,7 @@ export default definePage(() => ({
     return 'Link Page';
   },
 
-  getHeadStylesheets() {
+  getStylesheets() {
     return [{ text: `
       body { margin: 0; background: #11111b; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #cdd6f4; }
       a { color: #cba6f7; }

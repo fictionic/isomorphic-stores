@@ -1,6 +1,7 @@
 export interface SluiceConfig {
   routes: string;
   server?: {
+    port?: number;
     urlPrefix?: string;
     renderTimeout?: number;
   };

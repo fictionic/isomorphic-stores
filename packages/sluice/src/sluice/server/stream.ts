@@ -1,7 +1,6 @@
-import type {RouteAssets} from "../bundle";
 import {Fetch} from "../core/fetch/Fetch";
 import {FETCH_CACHE_KEY, FN_HYDRATE_ROOTS_UP_TO, FN_RECEIVE_LATE_DATA_ARRIVAL, SluicePipe} from "../core/SluicePipe";
-import type {StandardizedPage} from "../core/handler/Page";
+import type {Script, StandardizedPage} from "../core/handler/Page";
 import {writeBody} from "./writeBody";
 import {writeHeader} from "./writeHeader";
 
@@ -9,10 +8,9 @@ const encoder = new TextEncoder();
 
 interface StreamOpts {
   renderTimeout: number;
-  routeAssets: RouteAssets;
 }
 
-export function makeStreamer(page: StandardizedPage, { renderTimeout, routeAssets }: StreamOpts) {
+export function makeStreamer(page: StandardizedPage, { renderTimeout }: StreamOpts) {
 
   const { readable, writable } = new TransformStream<Uint8Array>();
 
@@ -35,7 +33,7 @@ export function makeStreamer(page: StandardizedPage, { renderTimeout, routeAsset
 
   async function writePage() {
     write(`<!DOCTYPE html><html lang="en"><head>`);
-    writeHeader(page, routeAssets.stylesheets, write);
+    writeHeader(page, write);
     write(`</head><body>`);
     flush();
 
@@ -79,9 +77,9 @@ export function makeStreamer(page: StandardizedPage, { renderTimeout, routeAsset
     const fetchCache = Fetch.getCache().server().dehydrate();
     console.log('[handlePage:debug] dehydrated cache keys:', Object.keys(fetchCache), 'entries:', Object.entries(fetchCache).map(([k, v]) => `${k}: response=${!!v.response}, requesters=${v.requesters}`));
     writeablePipe.writeValue(FETCH_CACHE_KEY, fetchCache);
-    routeAssets.scripts.forEach((scriptBundleUrl) => {
-      write(`<script async type="module" src="${scriptBundleUrl}"></script>\n`);
-    });
+    for (const script of [...page.getSystemScripts(), ...page.getScripts()]) {
+      write(renderScript(script));
+    }
     hydrateRootsUpTo(theFoldIndex - 1);
     flush();
   }
@@ -111,6 +109,19 @@ export function makeStreamer(page: StandardizedPage, { renderTimeout, routeAsset
   };
 };
 
+
+function renderScript(script: Script): string {
+  const type = script.type ? ` type="${script.type}"` : '';
+  const async = script.async ? ' async' : '';
+  const defer = script.defer ? ' defer' : '';
+  if (script.content) {
+    return `<script${type}>${script.content}</script>\n`;
+  }
+  if (script.src) {
+    return `<script${async}${defer}${type} src="${script.src}"></script>\n`;
+  }
+  return '';
+}
 
 function buffered(writer: WritableStreamDefaultWriter) {
   let writeBuffer = '';

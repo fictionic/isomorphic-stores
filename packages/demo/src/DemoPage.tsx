@@ -22,7 +22,7 @@ export default definePage(() => {
       return 'isomorphic-stores demo';
     },
 
-    getHeadStylesheets() {
+    getStylesheets() {
       return [{ text: `
         *, *::before, *::after { box-sizing: border-box; }
         body { margin: 0; background: #11111b; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #cdd6f4; }

@@ -11,34 +11,43 @@ interface SluiceServerConfig {
 }
 
 interface SluiceServer {
-  routes: Record<string, { GET: () => Response }>; // client bundles
-  serve: (req: Request) => Promise<Response>; // ssr handler
+  serve: (req: Request) => Promise<Response>;
 }
 
 export async function createSluiceServer(config: SluiceServerConfig): Promise<SluiceServer> {
-  const clientBundleRoutes = Object.assign({}, ...Object.entries(config.bundleResult.bundleContents).map(([bundlePath, contents]) => {
+  const bundlesByPath = new Map<string, { contents: string; contentType: string }>();
+  for (const [bundlePath, contents] of Object.entries(config.bundleResult.bundleContents)) {
     const isCss = bundlePath.endsWith('.css');
-    return {
-      [`/${bundlePath}`]: {
-        GET: () => new Response(contents, { headers: { 'Content-Type': isCss ? 'text/css' : 'application/javascript' } }),
-      },
-    };
-  }));
+    bundlesByPath.set(`/${bundlePath}`, {
+      contents,
+      contentType: isCss ? 'text/css' : 'application/javascript',
+    });
+  }
+
   const site = await importModule<SiteConfig>(config.siteConfigPath);
   const { routes } = site;
   const router = createRouter(routes);
   const { handlersByRoute } = config.bundleResult;
+
   return {
-    routes: clientBundleRoutes,
     serve: (req: Request) => {
-      const result = router.matchRoute(new URL(req.url).pathname, req.method);
-      if (!result) {
+      const url = new URL(req.url);
+
+      // Serve client bundles
+      const bundle = bundlesByPath.get(url.pathname);
+      if (bundle) {
+        return Promise.resolve(new Response(bundle.contents, {
+          headers: { 'Content-Type': bundle.contentType },
+        }));
+      }
+
+      // SSR route matching
+      const route = router.matchRoute(url.pathname, req.method);
+      if (!route) {
         return Promise.resolve(new Response(null, { status: 404 }));
       }
-      const handler = handlersByRoute[result.routeName]!;
-      const { routeName, params: routeParams } = result;
-      return handleRoute(handler.type, req, handler, routeParams, site.middleware ?? [], {
-        routeAssets: config.bundleResult.manifest[routeName]!,
+      const handler = handlersByRoute[route.routeName]!;
+      return handleRoute(handler.type, route, handler, site.middleware ?? [], req, {
         urlPrefix: config.urlPrefix,
       });
     }

@@ -23,7 +23,7 @@ export function sluiceVitePlugin(getRoutes: () => Routes, siteConfigPath: string
       const routeName = id.slice(RESOLVED_PREFIX.length);
       const routeConfig = getRoutes()[routeName];
       if (!routeConfig) return;
-      return makeEntrypoint(routeConfig.handler, routeConfig.path, routesDir, siteConfigPath);
+      return makeEntrypoint(routeConfig.handler, routesDir, siteConfigPath);
     },
   };
 }

@@ -3,7 +3,7 @@
 
 **Sluice** is a streaming SSR framework, and **isomorphic-stores** is its state management layer — a framework-agnostic adapter system for plugging Zustand, Redux, etc. into Sluice's SSR model.
 
-**Architecture**: Sluice owns the server and the bundler. The server targets Node's standard HTTP APIs (works on Bun/Deno via Node compat). The bundler is Vite. Both are theoretically pluggable via adapters later, but there is no formal adapter system now — `BundleResult` (`bundle.ts`) is the clean boundary for the bundler, and standard `Request`/`Response` is the boundary for the server. `bunBundler.ts` is temporary and will be removed. `viteBundler.ts` is the Vite-based bundler.
+**Architecture**: Sluice owns the server and the bundler. The server targets Node's standard HTTP APIs (works on Bun/Deno via Node compat). The bundler is Vite. Both are theoretically pluggable via adapters later, but there is no formal adapter system now — `BundleResult` (`bundle.ts`) is the clean boundary for the bundler, and standard `Request`/`Response` is the boundary for the server. `viteBundler.ts` is the Vite-based bundler.
 
 **CLI** (in progress): `sluice dev` starts a Vite dev server with HMR composed with sluice's SSR handler. `sluice build` writes production bundles to disk + `manifest.json`. `sluice start` serves pre-built bundles + SSR. The user does not own the server file — sluice orchestrates HTTP serving, and the user provides configuration (routes, API endpoints, etc.) via `sluice.config.ts`.
 
@@ -41,7 +41,6 @@ packages/
     ├── playwright.config.ts
     ├── sluice.config.ts    # demo's sluice configuration
     ├── src/
-    │   ├── server.tsx      # demo server entry point
     │   ├── routes.ts       # route definitions (SiteConfig)
     │   ├── DemoPage.tsx
     │   ├── LinkPage.tsx
@@ -71,7 +70,6 @@ src/sluice/
 ├── env.ts           # isServer() / IS_SERVER environment detection
 ├── entrypoint.ts    # shared client entry code generator (used by viteBundler + dev plugin)
 ├── bundle.ts        # bundler-agnostic types (RouteAssets, BundleManifest, BundleResult)
-├── bunBundler.ts    # Bun-specific bundler (temporary)
 ├── viteBundler.ts   # Vite-based bundler; produces BundleResult via vite.build()
 ├── config.ts        # SluiceConfig type for sluice.config.ts
 ├── cli.ts           # CLI entry point (sluice build, sluice start, sluice dev)
@@ -81,8 +79,7 @@ src/sluice/
 │   └── dev.ts       # sluice dev: Vite dev server + SSR
 ├── dev/
 │   ├── createDevServer.ts   # orchestrates Vite + Node HTTP server
-│   ├── sluiceVitePlugin.ts  # Vite plugin: virtual entry modules per route
-│   └── devRouteAssets.ts    # generates RouteAssets pointing to virtual modules
+│   └── sluiceVitePlugin.ts  # Vite plugin: virtual entry modules per route
 ├── constants.ts     # DOM attribute names
 ├── core/
 │   ├── RequestContext.ts   # server-side escape hatch: raw Request + cookies; RLS-backed
@@ -109,6 +106,8 @@ src/sluice/
 │       └── TheFold.tsx
 ├── client/
 │   └── bootstrap.ts # client entry point; receives PageClass + route pattern
+├── middleware/
+│   └── ViteBundleLoader.ts  # system middleware: injects Vite bundle scripts + stylesheets
 ├── server/
 │   ├── index.ts              # barrel export
 │   ├── createSluiceServer.ts # wires up routing, bundle serving, and SSR handler
@@ -116,8 +115,9 @@ src/sluice/
 │   ├── handlePage.ts         # orchestrates per-request SSR
 │   ├── handleEndpoint.ts     # handler for JSON endpoints
 │   ├── stream.ts             # streaming HTML writer (header, roots, bootstrap, late arrivals)
-│   ├── writeHeader.ts        # <head> rendering (title, styles, bundle stylesheets)
+│   ├── writeHeader.ts        # <head> rendering (system stylesheets, user stylesheets, title)
 │   ├── writeBody.ts          # body rendering (roots, containers, TheFold)
+│   ├── nodeHttp.ts           # shared Node HTTP helpers (toWebRequest, sendWebResponse)
 │   ├── ServerCookies.ts      # response cookie accumulator; RLS-backed
 │   └── router.ts             # route matching via path-to-regexp
 ├── tests/
@@ -212,7 +212,7 @@ Three layers:
 
 ### Sluice SSR pipeline
 
-- `createSluiceServer.ts` — wires everything together. Takes `siteConfigPath` and a `BundleResult`. Dynamically imports the site config to get routes/middleware. Returns `routes` (static bundle-serving routes for `Bun.serve`) and `serve` (SSR request handler that matches routes, resolves handlers, and delegates to `handleRoute`).
+- `createSluiceServer.ts` — wires everything together. Takes `siteConfigPath` and a `BundleResult`. Dynamically imports the site config to get routes/middleware. Returns `serve` (a unified request handler that serves client bundles and SSR pages, matching routes and delegating to `handleRoute`).
 - `handleRoute.ts` — common setup for all route types. Initializes RLS (`RequestContext`, `ServerCookies`, `Fetch`), creates `SluiceRequest` and `RouteHandlerCtx`, builds the handler chain, calls `getRouteDirective()`, then delegates to `handlePage` or `handleEndpoint`.
 - `handlePage.ts` — orchestrates per-request SSR. Delegates to `makeStreamer` for streaming HTML. Takes `routeAssets: RouteAssets` (per-route scripts and stylesheets from the bundle manifest).
 - `stream.ts` — streaming HTML writer. Writes the shell (`<head>`, styles, bundle stylesheets), then streams root elements in document order. At `TheFold`, injects the dehydrated fetch cache and per-route `<script>` tags from `routeAssets.scripts`. Below-fold roots get inline `hydrateRootsUpTo` pipe calls. Handles late data arrivals and timeouts.
@@ -223,8 +223,6 @@ Three layers:
 - `ServerClientPipe.ts` — generic factory (`createPipe<Schema>`) for typed server→client data transport via inline `<script>` tags. `SluicePipe.ts` is the sluice-specific instance.
 - `client/bootstrap.ts` — client entry point. Each route gets its own generated entry that imports the page class and calls `bootstrap(PageClass, routePattern)`. Bootstrap uses `path-to-regexp` to extract route params from `location.pathname`, creates `SluiceRequest.client()` and `RouteHandlerCtx`, initializes `RequestContext` (client mode) and `Fetch`, rehydrates the fetch cache from the pipe, builds the handler chain, tokenizes elements, then hydrates roots as `hydrateRootsUpTo` events arrive.
 - `bundle.ts` — bundler-agnostic types. `RouteAssets = { scripts, stylesheets }`, `BundleManifest = { [routeName]: RouteAssets }`, `BundleResult = { manifest, bundleContents }`. This is the contract between bundler implementations and the framework.
-- `bunBundler.ts` — Bun-specific bundler implementation. Generates per-route entry files in a `bundles/` directory, builds with `Bun.build` (`splitting: true`, `metafile: true`), correlates metafile outputs back to route names, and produces a `BundleResult`. Temporary — will be replaced by a Vite plugin.
-
 ### Dev server architecture (`sluice dev`)
 
 `sluice dev` starts a Vite dev server in middleware mode composed with sluice's SSR handler. Run with `cd packages/demo && node packages/sluice/bin/sluice.js dev` (or via the `sluice` bin).
@@ -242,9 +240,9 @@ Three layers:
 
 **Per-request loading:** `handleRoute` and the route handler are loaded via `ssrLoadModule` on every request. Vite caches modules and only re-evaluates when files change, so this is effectively free — but it means server-side code changes take effect on the next request without restarting.
 
-**Client-side virtual entries:** The `sluiceVitePlugin` registers virtual modules (`virtual:sluice/route-<name>`) that generate per-route client entry code (imports the page + bootstrap). In dev, `devRouteAssets.ts` produces `RouteAssets` pointing to these virtual module URLs (`/@id/__x00__virtual:sluice/route-<name>`), which Vite serves with HMR support.
+**Client-side virtual entries:** The `sluiceVitePlugin` registers virtual modules (`virtual:sluice/route-<name>`) that generate per-route client entry code (imports the page + bootstrap). In dev, `createDevServer.ts` builds `routeScripts` pointing to these virtual module URLs (`/@id/__x00__virtual:sluice/route-<name>`), which are injected via the `ViteBundleLoader` middleware and served by Vite with HMR support.
 
-**Environment detection:** `env.ts` exports `isServer()`. All bundler configs define `IS_SERVER` — `'true'` for server builds, `'false'` for client builds. In the Vite dev server, this is set via top-level `define` (server default) and overridden in `environments.client.define`. `globals.d.ts` declares `IS_SERVER` globally so consumers can use it directly for dead code elimination (e.g. `if (IS_SERVER) { await import('node:...') }`) without needing `declare const`. The `isServer()` function wraps this for ergonomic runtime checks.
+**Environment detection:** `env.ts` exports `isServer()`. `IS_SERVER` is set in three places: (1) `bin/sluice.js` sets `globalThis.IS_SERVER = true` before jiti loads any modules, so the CLI path works under Node; (2) the Vite dev server sets it via `define` (server default) and overrides in `environments.client.define`; (3) `viteBundler.ts` defines `IS_SERVER: 'false'` for client builds. `globals.d.ts` declares `IS_SERVER` globally so consumers can use it directly for dead code elimination (e.g. `if (IS_SERVER) { await import('node:...') }`) without needing `declare const`. The `isServer()` function wraps this for ergonomic runtime checks.
 
 **SSR correctness note:** Zustand's `useStore` uses `useSyncExternalStore` with `getInitialState()` as the server snapshot, which returns state at construction time — before `waitFor` resolves. The Zustand adapter overrides `store.getInitialState = store.getState` so `renderToString` (called after `whenReady`) sees the resolved async values.
 
@@ -276,7 +274,8 @@ import type { SluiceConfig } from 'sluice/config';
 export default {
   routes: './src/routes.ts',        // path to SiteConfig file (routes + middleware)
   server: {
-    urlPrefix: 'http://localhost:3000',  // optional, defaults to req.url origin
+    port: 3000,                          // optional, default 3000
+    urlPrefix: 'http://localhost:3000',  // optional, defaults to http://localhost:{port}
     renderTimeout: 20_000,               // optional
   },
   build: {
@@ -289,7 +288,7 @@ export default {
 The routes file (`SiteConfig`) is a separate concern from the framework config — the bundler only needs the routes file path to follow handler imports.
 
 ### Demo site
-Run with `cd packages/demo && sluice dev` (or `node ../../packages/sluice/bin/sluice.js dev`). The legacy path `bun src/server.tsx` still works (calls `bundle()` then `createSluiceServer()`). Routes are defined in `src/routes.ts` as string handler paths (e.g. `'./DemoPage'`), typed with `SiteConfig`. Exercises sluice + isomorphic-stores together with Zustand stores, streaming roots, TheFold, late data arrivals, routing, and cross-root broadcast.
+Run with `cd packages/demo && sluice dev` (or `npm run dev`). For production: `npm run build` then `npm run start`. Routes are defined in `src/routes.ts` as string handler paths (e.g. `'./DemoPage'`), typed with `SiteConfig`. Exercises sluice + isomorphic-stores together with Zustand stores, streaming roots, TheFold, late data arrivals, routing, and cross-root broadcast.
 
 ### TODOs
 
@@ -298,7 +297,6 @@ Run with `cd packages/demo && sluice dev` (or `node ../../packages/sluice/bin/sl
 
 #### sluice (SSR framework)
 - Verify client-side HMR works end-to-end in `sluice dev` (virtual entry modules are served by Vite with HMR support, but this hasn't been tested in a browser yet)
-- Support pre-building the client bundle as a separate step (for prod), distinct from on-the-fly bundling at dev server startup
 - Client-side transitions (SPA navigation) — `navigateTo()` function that lazy-loads the target route's page entry, unmounts the current page, and mounts the new one without a full page reload
 - API to allow page authors to transport arbitrary server-side data down to the client
 - pipe server-only request data (method, headers) to the client via SluicePipe so `SluiceRequest` can be fully isomorphic
@@ -323,8 +321,8 @@ Run with `cd packages/demo && sluice dev` (or `node ../../packages/sluice/bin/sl
 
 #### Notes for the future
 - **`sluice dev`**: Implemented. Vite dev server with HMR, composed with sluice's SSR handler. See "Dev server architecture" section above and `specs/vite-dev-server.md`.
-- **`sluice build`**: Production build — writes bundles to disk + `manifest.json`. The production server reads the manifest and serves bundles from disk (or delegates to a CDN via a `cdnPrefix` config).
-- **`sluice start`** (or similar): Production server — reads pre-built manifest, serves SSR + static bundles via Node HTTP. Two bundle serving modes: (1) local prod — from disk, (2) CDN — manifest only, bundles served externally.
+- **`sluice build`**: Implemented. Production build — writes bundles to disk + `manifest.json`.
+- **`sluice start`**: Implemented. Production server — reads pre-built manifest, serves SSR + static bundles via Node HTTP (`node:http`). Two bundle serving modes planned: (1) local prod — from disk (current), (2) CDN — manifest only, bundles served externally (not yet implemented).
 - **API routes**: Support non-SSR route handlers (JSON endpoints, redirects) in the routes config so the full app can be expressed without a custom server.
 - **ALS requirement**: Sluice currently requires `AsyncLocalStorage` (via `requestLocal.ts`). This limits deployment to Node, Bun, and Deno. Edge runtimes (Cloudflare Workers, Vercel Edge) don't support ALS. If edge support is needed, RLS would need an alternative implementation.
 
