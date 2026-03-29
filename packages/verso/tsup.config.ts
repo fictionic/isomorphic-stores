@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: { plugin: 'src/verso/plugin.ts' },
+  entry: { plugin: 'src/plugin.ts' },
   outDir: 'dist',
   format: ['esm'],
   dts: true,

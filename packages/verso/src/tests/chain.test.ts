@@ -1,9 +1,9 @@
 import { test, expect, describe } from 'vitest';
-import { createHandlerChain } from '@/verso/core/handler/chain';
-import { defineRouteHandler, type RouteHandler } from '@/verso/core/handler/RouteHandler';
-import { defineMiddleware } from '@/verso/core/handler/Middleware';
-import { ResponderConfig } from '@/verso/core/handler/ResponderConfig';
-import { startRequest } from '@/verso/util/requestLocal';
+import { createHandlerChain } from '@/core/handler/chain';
+import { defineRouteHandler, type RouteHandler } from '@/core/handler/RouteHandler';
+import { defineMiddleware } from '@/core/handler/Middleware';
+import { ResponderConfig } from '@/core/handler/ResponderConfig';
+import { startRequest } from '@/util/requestLocal';
 import type {RouteHandlerCtx} from '../core/handler/RouteHandlerCtx';
 
 // --- Helpers ---

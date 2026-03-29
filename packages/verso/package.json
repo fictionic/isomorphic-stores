@@ -6,11 +6,11 @@
     "verso": "./bin/verso.js"
   },
   "exports": {
-    ".": "./src/verso/index.ts",
-    "./fetch": "./src/verso/core/fetch/index.ts",
-    "./cookies": "./src/verso/util/cookies.ts",
-    "./server": "./src/verso/server/index.ts",
-    "./config": "./src/verso/config.ts",
+    ".": "./src/index.ts",
+    "./fetch": "./src/core/fetch/index.ts",
+    "./cookies": "./src/util/cookies.ts",
+    "./server": "./src/server/index.ts",
+    "./config": "./src/config.ts",
     "./plugin": {
       "types": "./dist/plugin.d.ts",
       "default": "./dist/plugin.js"

@@ -13,9 +13,9 @@ import { makeUnifiedEntrypoint } from './entrypoint';
 import { importModule } from './util/importModule';
 
 // When compiled by tsup, import.meta.url points to dist/plugin.js.
-// Resolve the source root (src/verso/) from the package root.
+// Resolve the source root (src/) from the package root.
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SOURCE_ROOT = path.resolve(PACKAGE_ROOT, 'src/verso');
+const SOURCE_ROOT = path.resolve(PACKAGE_ROOT, 'src');
 const HANDLE_ROUTE_PATH = path.resolve(SOURCE_ROOT, 'server/handleRoute.ts');
 const BOOTSTRAP_PATH = path.resolve(SOURCE_ROOT, 'client/bootstrap.ts');
 

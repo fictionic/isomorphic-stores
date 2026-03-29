@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { test, expect, describe, beforeEach } from 'vitest';
-import { createPipe } from '@/verso/util/ServerClientPipe';
+import { createPipe } from '@/util/ServerClientPipe';
 
 const PIPE_NAME = 'test';
 

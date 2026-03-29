@@ -1,23 +1,23 @@
 {
   "DemoPage": {
     "scripts": [
-      "bundles/verso-DMbSYO6n.js",
-      "bundles/requestLocal-xqbgliBh.js",
-      "bundles/entry-B8Hajpb8.js"
+      "bundles/src-w9ZUkK7U.js",
+      "bundles/requestLocal-sOt4uN17.js",
+      "bundles/entry-DRCzKoHD.js"
     ],
     "preloads": [
-      "bundles/DemoPage-BI-kBypT.js"
+      "bundles/DemoPage-CA-6ZEl2.js"
     ],
     "stylesheets": []
   },
   "LinkPage": {
     "scripts": [
-      "bundles/verso-DMbSYO6n.js",
-      "bundles/requestLocal-xqbgliBh.js",
-      "bundles/entry-B8Hajpb8.js"
+      "bundles/src-w9ZUkK7U.js",
+      "bundles/requestLocal-sOt4uN17.js",
+      "bundles/entry-DRCzKoHD.js"
     ],
     "preloads": [
-      "bundles/LinkPage-Dt_uSDm9.js"
+      "bundles/LinkPage-UMph76jx.js"
     ],
     "stylesheets": []
   }

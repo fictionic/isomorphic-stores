@@ -1,11 +1,11 @@
 import React from 'react';
 import { test, expect, describe } from 'vitest';
-import { handleRoute } from '@/verso/server/handleRoute';
-import { Root, makeRootComponent } from '@/verso/core/components/Root';
-import RootContainer from '@/verso/core/components/RootContainer';
-import TheFold from '@/verso/core/components/TheFold';
-import { definePage, type PageInit, type Script, type Stylesheet } from '@/verso/core/handler/Page';
-import type { RouteMatch } from '@/verso/server/router';
+import { handleRoute } from '@/server/handleRoute';
+import { Root, makeRootComponent } from '@/core/components/Root';
+import RootContainer from '@/core/components/RootContainer';
+import TheFold from '@/core/components/TheFold';
+import { definePage, type PageInit, type Script, type Stylesheet } from '@/core/handler/Page';
+import type { RouteMatch } from '@/server/router';
 
 // --- Helpers ---
 
