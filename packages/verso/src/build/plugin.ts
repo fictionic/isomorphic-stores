@@ -6,10 +6,11 @@ import type { VersoConfig } from '../VersoConfig';
 import type { SiteConfig, Routes } from '../core/router';
 import type { RouteHandler, RouteHandlerDefinition } from '../core/handler/RouteHandler';
 import type { BundleManifest } from './bundle';
+import { BUNDLES_DIR } from './bundle';
 import { createRouter } from '../core/router';
 import { createViteBundleLoader } from '../core/middleware/ViteBundleLoader';
 import { toWebRequest, sendWebResponse } from '../server/nodeHttp';
-import { makeUnifiedEntrypoint } from './entrypoint';
+import { makeUnifiedEntrypoint, makeServerEntry } from './entrypoint';
 import { importModule } from './importModule';
 
 // When compiled by tsup, import.meta.url points to dist/plugin.js.
@@ -120,9 +121,9 @@ export default function verso(options: VersoConfig): Plugin[] {
                 input: CLIENT_ENTRY_VIRTUAL_ID,
                 output: {
                   format: 'es' as const,
-                  entryFileNames: 'bundles/[name]-[hash].js',
-                  chunkFileNames: 'bundles/[name]-[hash].js',
-                  assetFileNames: 'bundles/[name]-[hash][extname]',
+                  entryFileNames: `${BUNDLES_DIR}/[name]-[hash].js`,
+                  chunkFileNames: `${BUNDLES_DIR}/[name]-[hash].js`,
+                  assetFileNames: `${BUNDLES_DIR}/[name]-[hash][extname]`,
                 },
               },
             },
@@ -148,7 +149,7 @@ export default function verso(options: VersoConfig): Plugin[] {
 
         if (id === SERVER_ENTRY_RESOLVED_ID) {
           if (!routes) throw new Error('Routes not loaded yet');
-          return makeServerEntry(routesPath, routes);
+          return makeServerEntry(routesPath, routes, SOURCE_ROOT);
         }
       },
 
@@ -279,43 +280,6 @@ export default function verso(options: VersoConfig): Plugin[] {
       },
     },
   ];
-}
-
-function makeServerEntry(siteConfigModulePath: string, routes: Routes): string {
-  const rootDir = path.dirname(siteConfigModulePath);
-  const createVersoServerPath = path.resolve(SOURCE_ROOT, 'build/createVersoServer.ts');
-  const handlerImports: string[] = [];
-  const handlerEntries: string[] = [];
-
-  for (const [routeName, routeConfig] of Object.entries(routes)) {
-    const handlerPath = path.resolve(rootDir, routeConfig.handler);
-    const safeName = routeName.replace(/[^a-zA-Z0-9_]/g, '_');
-    handlerImports.push(`import handler_${safeName} from ${JSON.stringify(handlerPath)};`);
-    handlerEntries.push(`  ${JSON.stringify(routeName)}: handler_${safeName},`);
-  }
-
-  return `
-import { createVersoServer } from ${JSON.stringify(createVersoServerPath)};
-import site from ${JSON.stringify(siteConfigModulePath)};
-${handlerImports.join('\n')}
-
-const handlersByRoute = {
-${handlerEntries.join('\n')}
-};
-
-export async function createServer(config) {
-  return createVersoServer({
-    site,
-    bundleResult: {
-      manifest: config.manifest,
-      bundleContents: config.bundleContents,
-      handlersByRoute,
-    },
-    urlPrefix: config.urlPrefix,
-    renderTimeout: config.renderTimeout,
-  });
-}
-`.trimStart();
 }
 
 function matchHandlerPath(

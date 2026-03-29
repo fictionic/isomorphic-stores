@@ -1,5 +1,7 @@
 import type {RouteHandlerDefinition, RouteHandlerType} from "../core/handler/RouteHandler";
 
+export const BUNDLES_DIR = 'bundles';
+
 export type RouteAssets = {
   scripts: string[];
   preloads?: string[];

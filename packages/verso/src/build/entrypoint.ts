@@ -32,3 +32,40 @@ ${loaderEntries.join(',\n')}
 bootstrap(siteConfig, pageLoaders);`
   );
 }
+
+export function makeServerEntry(siteConfigModulePath: string, routes: Routes, sourceRoot: string): string {
+  const rootDir = path.dirname(siteConfigModulePath);
+  const createVersoServerPath = path.resolve(sourceRoot, 'build/createVersoServer.ts');
+  const handlerImports: string[] = [];
+  const handlerEntries: string[] = [];
+
+  for (const [routeName, routeConfig] of Object.entries(routes)) {
+    const handlerPath = path.resolve(rootDir, routeConfig.handler);
+    const safeName = routeName.replace(/[^a-zA-Z0-9_]/g, '_');
+    handlerImports.push(`import handler_${safeName} from ${JSON.stringify(handlerPath)};`);
+    handlerEntries.push(`  ${JSON.stringify(routeName)}: handler_${safeName},`);
+  }
+
+  return `
+import { createVersoServer } from ${JSON.stringify(createVersoServerPath)};
+import site from ${JSON.stringify(siteConfigModulePath)};
+${handlerImports.join('\n')}
+
+const handlersByRoute = {
+${handlerEntries.join('\n')}
+};
+
+export async function createServer(config) {
+  return createVersoServer({
+    site,
+    bundleResult: {
+      manifest: config.manifest,
+      bundleContents: config.bundleContents,
+      handlersByRoute,
+    },
+    urlPrefix: config.urlPrefix,
+    renderTimeout: config.renderTimeout,
+  });
+}
+`.trimStart();
+}

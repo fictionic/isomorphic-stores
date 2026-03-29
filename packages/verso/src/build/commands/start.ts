@@ -3,6 +3,7 @@ import path from 'node:path';
 import { readFile, readdir } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import type { BundleManifest } from '../bundle';
+import { BUNDLES_DIR } from '../bundle';
 import { toWebRequest, sendWebResponse } from '../../server/nodeHttp';
 
 export async function runStart(outDir = 'dist') {
@@ -18,12 +19,12 @@ export async function runStart(outDir = 'dist') {
   const manifest: BundleManifest = JSON.parse(await readFile(manifestPath, 'utf-8'));
 
   // Read client bundle files from disk
-  const bundlesDir = path.resolve(outDir, 'bundles');
+  const bundlesDir = path.resolve(outDir, BUNDLES_DIR);
   const files = await readdir(bundlesDir);
   const bundleContents: Record<string, string> = {};
   await Promise.all(
     files.map(async (file) => {
-      const bundlePath = `bundles/${file}`;
+      const bundlePath = `${BUNDLES_DIR}/${file}`;
       bundleContents[bundlePath] = await readFile(path.resolve(outDir, bundlePath), 'utf-8');
     })
   );
