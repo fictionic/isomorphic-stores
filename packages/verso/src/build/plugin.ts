@@ -2,19 +2,19 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import type { Plugin, ViteDevServer } from 'vite';
-import type { VersoConfig } from './config';
-import type { SiteConfig, Routes } from './server/router';
-import type { RouteHandler, RouteHandlerDefinition } from './core/handler/RouteHandler';
+import type { VersoConfig } from '../config';
+import type { SiteConfig, Routes } from '../server/router';
+import type { RouteHandler, RouteHandlerDefinition } from '../core/handler/RouteHandler';
 import type { BundleManifest } from './bundle';
-import { createRouter } from './server/router';
-import { createViteBundleLoader } from './middleware/ViteBundleLoader';
-import { toWebRequest, sendWebResponse } from './server/nodeHttp';
+import { createRouter } from '../server/router';
+import { createViteBundleLoader } from '../middleware/ViteBundleLoader';
+import { toWebRequest, sendWebResponse } from '../server/nodeHttp';
 import { makeUnifiedEntrypoint } from './entrypoint';
-import { importModule } from './util/importModule';
+import { importModule } from '../util/importModule';
 
 // When compiled by tsup, import.meta.url points to dist/plugin.js.
 // Resolve the source root (src/) from the package root.
-const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const SOURCE_ROOT = path.resolve(PACKAGE_ROOT, 'src');
 const HANDLE_ROUTE_PATH = path.resolve(SOURCE_ROOT, 'server/handleRoute.ts');
 const BOOTSTRAP_PATH = path.resolve(SOURCE_ROOT, 'client/bootstrap.ts');
@@ -255,7 +255,7 @@ export default function verso(options: VersoConfig): Plugin[] {
               vite,
               resolveHandler(routesPath, route.handler),
             );
-            const { handleRoute } = await vite.ssrLoadModule(HANDLE_ROUTE_PATH) as typeof import('./server/handleRoute');
+            const { handleRoute } = await vite.ssrLoadModule(HANDLE_ROUTE_PATH) as typeof import('../server/handleRoute');
             const request = toWebRequest(req, url);
             const response = await handleRoute(
               handler.type,

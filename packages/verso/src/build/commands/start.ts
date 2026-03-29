@@ -3,7 +3,7 @@ import path from 'node:path';
 import { readFile, readdir } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import type { BundleManifest } from '../bundle';
-import { toWebRequest, sendWebResponse } from '../server/nodeHttp';
+import { toWebRequest, sendWebResponse } from '../../server/nodeHttp';
 
 export async function runStart(outDir = 'dist') {
   // Read build metadata (written by the plugin during `verso build`)

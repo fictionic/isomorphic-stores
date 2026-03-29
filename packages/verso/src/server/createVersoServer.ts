@@ -1,4 +1,4 @@
-import type {BundleResult} from "../bundle";
+import type {BundleResult} from "../build/bundle";
 import {createRouter, type SiteConfig} from "./router";
 import {handleRoute} from "./handleRoute";
 import {createViteBundleLoader} from "../middleware/ViteBundleLoader";
