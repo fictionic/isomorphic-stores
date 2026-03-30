@@ -47,7 +47,7 @@ function recursivelyExpandMiddleware<R extends RouteHandlerType>(
   middlewareDefs: MiddlewareDefinition<Scope>[],
   ctx: RouteHandlerCtx,
   handlerType: R,
-): Middleware<R>[] {
+): Middleware<R, any>[] {
   if (middlewareDefs.length === 0) {
     return [];
   }

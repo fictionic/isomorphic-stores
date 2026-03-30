@@ -24,32 +24,44 @@ type ForbiddenMethodsMap = {
 
 export type Scope = RouteHandlerType | 'all';
 
-interface MiddlewareHooks {
-  addConfigValues(): Partial<BaseConfig>;
+interface MiddlewareHooks<C extends BaseConfig> {
+  addConfigValues(): C;
 }
 
-export type Middleware<S extends Scope> =
+export type Middleware<S extends Scope, C extends BaseConfig> =
   ForbiddenMethodsMap[S] &
   Partial<
     BaseResponder<S> &
-    MiddlewareHooks &
+    MiddlewareHooks<C> &
     Chained<SharedMethods> &
     Chained<HandlerMethodsFor<S>>
   >;
 
-type MiddlewareInit<S extends Scope> = (ctx: RouteHandlerCtx) => Middleware<S>;
+type MiddlewareInit<S extends Scope, C extends BaseConfig> = (ctx: RouteHandlerCtx) => Middleware<S, C>;
 
-export interface MiddlewareDefinition<S extends Scope = Scope> {
+export interface MiddlewareDefinition<S extends Scope = Scope, C extends BaseConfig = BaseConfig> {
   type: 'middleware';
   scope: S;
-  init: MiddlewareInit<S>;
+  init: MiddlewareInit<S, C>;
 }
 
-export function defineMiddleware<S extends Scope>(
+export function defineMiddleware<C extends BaseConfig>(
+  init: MiddlewareInit<'page', C>,
+): MiddlewareDefinition<'page', C>;
+
+export function defineMiddleware<S extends Scope, C extends BaseConfig>(
   scope: S,
-  init: NoInfer<MiddlewareInit<S>>,
-): MiddlewareDefinition<S> {
-  return { type: 'middleware', scope, init };
+  init: NoInfer<MiddlewareInit<S, C>>,
+): MiddlewareDefinition<S, C>;
+
+export function defineMiddleware<S extends Scope, C extends BaseConfig>(
+  scopeOrPageInit: S | MiddlewareInit<'page', C>,
+  init?: NoInfer<MiddlewareInit<S, C>>,
+) {
+  if (typeof scopeOrPageInit === 'function') {
+    return { type: 'middleware', scope: 'page', init: scopeOrPageInit };
+  }
+  return { type: 'middleware', scope: scopeOrPageInit, init };
 }
 
 type Chained<T> = {

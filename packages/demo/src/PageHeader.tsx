@@ -4,7 +4,7 @@ interface HeaderConfig {
   showHeader: boolean;
 };
 
-export default defineMiddleware('page', () => {
+export default defineMiddleware<HeaderConfig>(() => {
   return {
     addConfigValues() {
       return {

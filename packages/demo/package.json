@@ -6,6 +6,7 @@
     "build": "verso build",
     "start": "verso start",
     "test:e2e": "bunx playwright test -c playwright.dev.config.ts",
+    "test:e2e:smoke": "bunx playwright test -c playwright.dev.config.ts smoke.spec.ts && bunx playwright test -c playwright.prod.config.ts",
     "test:e2e:prod": "bunx playwright test -c playwright.prod.config.ts",
     "test:e2e:all": "bunx playwright test -c playwright.dev.config.ts && bunx playwright test -c playwright.prod.config.ts",
     "typecheck": "bunx tsc --noEmit"
