@@ -1,4 +1,5 @@
 import { defineZustandIsoStore } from './define';
+import { asSingleton } from '@verso-js/stores';
 import { fetch } from '@verso-js/verso/fetch';
 
 interface ThemeState {
@@ -8,7 +9,7 @@ interface ThemeState {
   setAccent: (accent: string) => void;
 }
 
-export const ThemeStore = defineZustandIsoStore<{ userId: number }, ThemeState>(
+export const ThemeStore = asSingleton(defineZustandIsoStore<{ userId: number }, ThemeState>(
   ({ userId }, { waitFor }) =>
     (set) => {
       const themePromise = fetch(`/api/theme/${userId}`)
@@ -21,4 +22,4 @@ export const ThemeStore = defineZustandIsoStore<{ userId: number }, ThemeState>(
       };
     },
   { onError: (err) => console.error('[ThemeStore]', err) },
-);
+));

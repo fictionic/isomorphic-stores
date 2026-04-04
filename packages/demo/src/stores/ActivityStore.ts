@@ -1,4 +1,5 @@
 import { defineZustandIsoStore } from './define';
+import { asSingleton } from '@verso-js/stores';
 
 interface ActivityState {
   recentItems: string[];
@@ -6,14 +7,14 @@ interface ActivityState {
   increment: () => void;
 }
 
-export const ActivityStore = defineZustandIsoStore<Record<string, never>, ActivityState>(
+export const ActivityStore = asSingleton(defineZustandIsoStore<Record<string, never>, ActivityState>(
   (_opts, { clientOnly }) =>
     (set, get) => ({
       ...clientOnly('recentItems', fetchActivity(), [] as string[]),
       liveCount: 0,
       increment: () => set({ liveCount: get().liveCount + 1 }),
     }),
-);
+));
 
 function fetchActivity(): Promise<string[]> {
   return new Promise((resolve) =>
