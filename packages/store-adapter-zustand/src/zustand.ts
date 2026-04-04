@@ -42,11 +42,11 @@ export const getAdapter: <State extends object>() => Adapter<
     return selector ? useNativeZustandStore(store, selector) : useNativeZustandStore(store);
   }
 
-  const getHooks = (getNativeStore: () => NativeZustandStore<State>): ZustandHooks<State> => {
+  const useHooks = (useNativeStore: () => NativeZustandStore<State>): ZustandHooks<State> => {
     function hook(): State;
     function hook<U>(selector: (s: State) => U): U;
     function hook(selector?: any) {
-      const store = getNativeStore();
+      const store = useNativeStore();
       return selector ? callHook(store, selector) : callHook(store);
     }
     return {
@@ -67,9 +67,9 @@ export const getAdapter: <State extends object>() => Adapter<
     getSetState: (nativeStore: NativeZustandStore<State>) => (
       (state: Partial<State>) => nativeStore.setState(state)
     ),
-    getHooks: getHooks,
-    getClientHooks: (getNativeStore: () => NativeZustandStore<State>, ready: boolean): ZustandClientHooks<State> => {
-      const hooks = getHooks(getNativeStore);
+    useHooks,
+    useClientHooks: (useNativeStore: () => NativeZustandStore<State>, ready: boolean): ZustandClientHooks<State> => {
+      const hooks = useHooks(useNativeStore);
       function useStore(): State | undefined;
       function useStore<U>(selector: (s: State) => U): U | undefined;
       function useStore(selector?: any) {

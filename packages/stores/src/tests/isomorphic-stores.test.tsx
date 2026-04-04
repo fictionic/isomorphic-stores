@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, expect, test } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor as waitForDom } from "@testing-library/react";
-import { IsoStoreProvider } from "../provider";
 import {defineZustandIsoStore} from "@verso-js/store-adapter-zustand";
+import {IsoStoreProvider} from "../IsoStoreProvider";
 
 afterEach(cleanup);
 
@@ -217,13 +217,13 @@ test("clientOnly: initial value shown before mount; resolves after mount", async
 
 // ─── useClientHooks ─────────────────────────────────────────────────────────
 
-test("useClientHooks: undefined before ready, value after", async () => {
+test("useCreateClientStore: throws before ready, value after", async () => {
   const SimpleStore = defineZustandIsoStore<{}, { value: string }>(
     () => () => ({ value: "hello" })
   );
 
   function Widget() {
-    const [ready, clientHooks] = SimpleStore.useClientHooks({});
+    const [ready, clientHooks] = SimpleStore.useCreateClientStore({});
     const value = clientHooks.useStore(s => s.value);
     if (!ready) return <div>not-ready</div>;
     return <div>{value}</div>;

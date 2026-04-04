@@ -1,5 +1,4 @@
 import { ProfileStore, ThemeStore, ActivityStore } from './stores';
-import StoreRoot from './StoreRoot';
 import { RootContainer, TheFold, definePage } from '@verso-js/verso';
 import { User } from './components/User';
 import { Prefs } from './components/Prefs';
@@ -7,6 +6,7 @@ import { Activity } from './components/Activity';
 import { Broadcast } from './components/Broadcast';
 import { LatencyControls } from './components/LatencyControls';
 import AuthMiddleware from './AuthMiddleware';
+import {StoreRoot} from '@verso-js/stores';
 
 export default definePage(() => {
   // TODO: export these store instance types

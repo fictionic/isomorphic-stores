@@ -48,20 +48,20 @@ export const getAdapter: <State extends object>() => Adapter<
     getSetState: (proxy) => (
       (state) => Object.assign(proxy, state)
     ),
-    getHooks: (getNativeStore) => {
+    useHooks: (useNativeStore) => {
       return {
-        useProxy: () => getNativeStore(),
-        useSnapshot: () => useSnapshot(getNativeStore()),
+        useProxy: () => useNativeStore(),
+        useSnapshot: () => useSnapshot(useNativeStore()),
       };
     },
-    getClientHooks: (getNativeStore, ready) => {
+    useClientHooks: (useNativeStore, ready) => {
       return {
         useProxy: () => {
-          const proxy = getNativeStore();
+          const proxy = useNativeStore();
           return ready ? proxy : undefined;
         },
         useSnapshot: () => {
-          const snapshot = useSnapshot(getNativeStore());
+          const snapshot = useSnapshot(useNativeStore());
           return ready ? snapshot : undefined;
         },
       };

@@ -25,15 +25,15 @@ interface ReduxClientHooks<State> {
 };
 
 export const getAdapter = <State extends object>(): Adapter<State, ReduxStore<State>, ReduxStoreInit<State>, ReduxHooks<State>, ReduxClientHooks<State>> => {
-  const getHooks = (getStore: () => ReduxStore<State>) => {
+  const useHooks = (useNativeStore: () => ReduxStore<State>) => {
     return {
       useSelector: <U>(selector: (s: State) => U): U => (
         useSyncExternalStore(
-          (callback: () => void) => getStore().subscribe(callback),
-          () => selector(getStore().getState()),
+          (callback: () => void) => useNativeStore().subscribe(callback),
+          () => selector(useNativeStore().getState()),
         )
       ),
-      useDispatch: () => getStore().dispatch,
+      useDispatch: () => useNativeStore().dispatch,
     };
   };
 
@@ -52,9 +52,9 @@ export const getAdapter = <State extends object>(): Adapter<State, ReduxStore<St
       return storeRef;
     },
     getSetState: (store) => (partial) => store.dispatch({ type: ISO_SET_STATE, payload: partial }),
-    getHooks,
-    getClientHooks: (getNativeStore, ready) => {
-      const hooks = getHooks(getNativeStore);
+    useHooks,
+    useClientHooks: (useNativeStore, ready) => {
+      const hooks = useHooks(useNativeStore);
       return {
         useSelector: <U>(selector: (s: State) => U): U | undefined => {
           const value = hooks.useSelector(selector);

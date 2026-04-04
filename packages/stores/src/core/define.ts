@@ -5,15 +5,16 @@ import {
   useMemo,
   useRef,
   useState,
+  type RefObject,
 } from "react";
-import {getStoreProvider} from "./StoreProvider";
+import {getStoreProvider} from "./getStoreProvider";
 import {
   STORE_DEFINITION_INTERNALS,
   STORE_INSTANCE_INTERNALS,
 } from "./constants";
 import {
   type Adapter,
-  type Broadcast,
+  type SendMessage,
   type DefinitionID,
   type InstanceID,
   type IsoStoreDefinition,
@@ -22,7 +23,7 @@ import {
   type MessageHandler,
   type OnMessage,
   type ProviderID,
-  type UseClientHooks,
+  type UseCreateClientStore,
   type SetAsyncState,
 } from "./types";
 import {useIsoStoreLifecycle} from "./lifecycle";
@@ -52,7 +53,9 @@ const definitions: Map<DefinitionID, IsoStoreDefinition<any, any, any, any, any>
 export function defineIsoStore<Opts, State extends object, Message, NativeStoreInit, A extends Adapter<State, any, NativeStoreInit, any, any>>(
   isoInit: IsoStoreInit<Opts, State, Message, NativeStoreInit>,
   adapter: A,
-  options?: { onError?: (error: unknown) => void },
+  options?: {
+    onError?: (error: unknown) => void;
+  },
 ): IsoStoreDefinition<Opts, Message, NativeStoreOf<A>, HooksOf<A>, ClientHooksOf<A>> {
   type NativeStore = NativeStoreOf<A>;
   const definitionId = Symbol() as DefinitionID;
@@ -99,7 +102,12 @@ export function defineIsoStore<Opts, State extends object, Message, NativeStoreI
         identifier: Symbol() as InstanceID,
         definition: definitions.get(definitionId)!,
         messageHandlers,
-        onMount: didMountDfd.resolve,
+        onMount: () => {
+          // TODO: move all the lifecycle logic into onMount. make it idempotent.
+          // stores might not have to hold a reference to their definition anymore.
+          // the lifecycle hook can just be a call to onmount.
+          didMountDfd.resolve();
+        },
       },
     };
   };
@@ -107,7 +115,7 @@ export function defineIsoStore<Opts, State extends object, Message, NativeStoreI
   type IsoContext = IsoStoreInstance<NativeStore> | null;
   const context = createContext<IsoContext>(null);
 
-  const hooks: HooksOf<A> = adapter.getHooks(() => {
+  const hooks: HooksOf<A> = adapter.useHooks(() => {
     const instance = useContext<IsoContext>(context);
     if (!instance) {
       throw new Error("isomorphic-stores: cannot call hooks outside a provider");
@@ -115,7 +123,7 @@ export function defineIsoStore<Opts, State extends object, Message, NativeStoreI
     return instance.nativeStore;
   });
 
-  const useClientHooks: UseClientHooks<Opts, ClientHooksOf<A>> = (opts) => {
+  const useCreateClientStore: UseCreateClientStore<Opts, ClientHooksOf<A>> = (opts) => {
     const [ready, setReady] = useState<boolean>(false);
     const instanceRef = useRef<IsoStoreInstance<NativeStore> | null>(null);
 
@@ -134,18 +142,14 @@ export function defineIsoStore<Opts, State extends object, Message, NativeStoreI
 
     useIsoStoreLifecycle(providerId, instanceRef.current);
 
-    const clientHooks = useMemo(() => {
-      const getNativeStore = () => {
-        return ready ? instanceRef.current!.nativeStore : adapter.empty;
-      };
-      return adapter.getClientHooks(getNativeStore, ready);
-    }, [ready]);
+    const useNativeStore = () => instanceRef.current?.nativeStore ?? adapter.empty;
+    const clientHooks = adapter.useClientHooks(useNativeStore, ready);
 
     return [ready, clientHooks];
 
   };
 
-  const broadcast: Broadcast<Message> = (message: Message) => {
+  const broadcast: SendMessage<Message> = (message: Message) => {
     const seen = new Set<InstanceID>();
     for (const instance of instancesByProvider.values()) {
       const instanceId = instance[STORE_INSTANCE_INTERNALS].identifier;
@@ -158,11 +162,12 @@ export function defineIsoStore<Opts, State extends object, Message, NativeStoreI
   const definition = {
     createStore,
     hooks,
-    useClientHooks,
+    useCreateClientStore,
     broadcast,
     [STORE_DEFINITION_INTERNALS]: {
       instancesByProvider,
       StoreProvider: getStoreProvider(context),
+      adapter,
     },
   };
 

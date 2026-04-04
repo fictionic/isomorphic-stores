@@ -1,0 +1,172 @@
+// @vitest-environment jsdom
+import { afterEach, beforeEach, expect, test } from "vitest";
+import { act, cleanup, render, screen, waitFor as waitForDom } from "@testing-library/react";
+import { defineZustandIsoStore } from "@verso-js/store-adapter-zustand";
+import { startClientRequest } from "@verso-js/verso/request-local";
+import { IsoStoreProvider } from "../IsoStoreProvider";
+import { asSingleton } from "../singleton";
+
+beforeEach(() => {
+  startClientRequest();
+});
+
+afterEach(cleanup);
+
+// ─── createStore ────────────────────────────────────────────────────────────
+
+test("createStore creates a store instance", () => {
+  const Store = asSingleton(
+    defineZustandIsoStore<{}, { count: number }>(
+      () => () => ({ count: 42 })
+    )
+  );
+
+  const instance = Store.createStore({});
+  expect(instance).toBeTruthy();
+  expect(instance.nativeStore).toBeTruthy();
+});
+
+test("createStore throws on second call", () => {
+  const Store = asSingleton(
+    defineZustandIsoStore<{}, { x: number }>(
+      () => () => ({ x: 1 })
+    )
+  );
+
+  Store.createStore({});
+  expect(() => Store.createStore({})).toThrow("cannot create more than one instance of a singleton store!");
+});
+
+// ─── hooks ──────────────────────────────────────────────────────────────────
+
+test("hooks access store through provider context", () => {
+  const Store = asSingleton(
+    defineZustandIsoStore<{}, { name: string }>(
+      () => () => ({ name: "Alice" })
+    )
+  );
+
+  const instance = Store.createStore({});
+
+  function Widget() {
+    const name = Store.hooks.useStore(s => s.name);
+    return <div>{name}</div>;
+  }
+
+  render(
+    <IsoStoreProvider stores={[instance]}>
+      <Widget />
+    </IsoStoreProvider>
+  );
+
+  expect(screen.getByText("Alice")).toBeTruthy();
+});
+
+// ─── useClientHooks ─────────────────────────────────────────────────────────
+
+test("useClientHooks throws if no singleton has been created", () => {
+  const Store = asSingleton(
+    defineZustandIsoStore<{}, { x: number }>(
+      () => () => ({ x: 1 })
+    )
+  );
+
+  function Widget() {
+    const [, clientHooks] = Store.useClientHooks();
+    const x = clientHooks.useStore(s => s.x);
+    return <div>{x}</div>;
+  }
+
+  const originalError = console.error;
+  console.error = () => {};
+  try {
+    expect(() => render(<Widget />)).toThrow("no singleton instance has been created");
+  } finally {
+    console.error = originalError;
+  }
+});
+
+test("useClientHooks: returns not ready initially, then ready after whenReady", async () => {
+  let resolveName!: (v: string) => void;
+  const Store = asSingleton(
+    defineZustandIsoStore<{}, { name: string }>(
+      (_, { waitFor }) => () => ({
+        ...waitFor("name", new Promise<string>(res => { resolveName = res; }), "loading"),
+      })
+    )
+  );
+
+  Store.createStore({});
+
+  function Widget() {
+    const [ready, clientHooks] = Store.useClientHooks();
+    const name = clientHooks.useStore(s => s.name);
+    return <div>{ready ? name : "not-ready"}</div>;
+  }
+
+  render(<Widget />);
+  expect(screen.getByText("not-ready")).toBeTruthy();
+
+  await act(async () => { resolveName("Alice"); });
+  await waitForDom(() => screen.getByText("Alice"));
+});
+
+test("useClientHooks: works without provider (cross-root access)", async () => {
+  const Store = asSingleton(
+    defineZustandIsoStore<{}, { value: string }>(
+      () => () => ({ value: "hello" })
+    )
+  );
+
+  Store.createStore({});
+
+  function Widget() {
+    const [ready, clientHooks] = Store.useClientHooks();
+    const value = clientHooks.useStore(s => s.value);
+    if (!ready) return <div>waiting</div>;
+    return <div>{value}</div>;
+  }
+
+  // No IsoStoreProvider — useClientHooks accesses the singleton via RLS
+  render(<Widget />);
+
+  await waitForDom(() => screen.getByText("hello"));
+});
+
+// ─── message ────────────────────────────────────────────────────────────────
+
+test("message broadcasts to mounted singleton instances", async () => {
+  type Msg = { type: "rename"; name: string };
+
+  const Store = asSingleton(
+    defineZustandIsoStore<{}, { name: string }, Msg>(
+      (_, { onMessage }) => (set) => {
+        onMessage((msg) => {
+          if (msg.type === "rename") set({ name: msg.name });
+        });
+        return { name: "initial" };
+      }
+    )
+  );
+
+  const instance = Store.createStore({});
+
+  function Widget() {
+    const name = Store.hooks.useStore(s => s.name);
+    return <div>{name}</div>;
+  }
+
+  render(
+    <IsoStoreProvider stores={[instance]}>
+      <Widget />
+    </IsoStoreProvider>
+  );
+
+  expect(screen.getByText("initial")).toBeTruthy();
+
+  act(() => {
+    Store.message({ type: "rename", name: "Bob" });
+  });
+
+  expect(screen.getByText("Bob")).toBeTruthy();
+});

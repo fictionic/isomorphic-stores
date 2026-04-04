@@ -1,6 +1,6 @@
 import type {ReactNode} from "react";
 import {STORE_DEFINITION_INTERNALS, STORE_INSTANCE_INTERNALS} from "./core/constants";
-import {type IsoStoreInstance} from "./core";
+import type {IsoStoreInstance} from "./core/types";
 
 interface Props {
   stores: Array<IsoStoreInstance<any>>,

@@ -5,7 +5,9 @@ export type {
   SetAsyncState,
   OnMessage,
   MessageHandler,
-  Broadcast,
+  SendMessage,
 } from './core/types';
 export { defineIsoStore } from './core/define';
-export { IsoStoreProvider } from './provider';
+export { IsoStoreProvider } from './IsoStoreProvider';
+export { default as StoreRoot } from './StoreRoot';
+export { asSingleton } from './singleton';

@@ -28,18 +28,19 @@ export type StoreProvider<NativeStore> = React.FC<{
   children: ReactNode;
 }>;
 
-export type UseClientHooks<Opts, NativeClientHooks> = (opts: Opts) => readonly [ready: boolean, clientHooks: NativeClientHooks];
+export type SendMessage<Message> = (message: Message) => void;
 
-export type Broadcast<Message> = (message: Message) => void;
+export type UseCreateClientStore<Opts, NativeClientHooks> = (opts: Opts) => readonly [ready: boolean, clientHooks: NativeClientHooks];
 
-export interface IsoStoreDefinition<Opts, Message, NativeStore, NativeHooks, NativeClientHooks> {
+export interface IsoStoreDefinition<Opts, Message, NativeStore, NativeHooks extends AllFunctions<NativeHooks>, NativeClientHooks extends AllFunctions<NativeClientHooks>> {
   createStore: (opts: Opts) => IsoStoreInstance<NativeStore>;
   hooks: NativeHooks;
-  useClientHooks: UseClientHooks<Opts, NativeClientHooks>;
-  broadcast: Broadcast<Message>;
+  useCreateClientStore: UseCreateClientStore<Opts, NativeClientHooks>;
+  broadcast: SendMessage<Message>;
   [STORE_DEFINITION_INTERNALS]: {
     instancesByProvider: Map<ProviderID, IsoStoreInstance<NativeStore>>;
     StoreProvider: StoreProvider<NativeStore>;
+    adapter: Adapter<any, NativeStore, any, any, any>;
   };
 }
 
@@ -67,12 +68,12 @@ export interface IsoInitFns<State, Message> {
 export type IsoStoreInit<Opts, State, Message, NativeStoreInit> =
   (opts: Opts, fns: IsoInitFns<State, Message>) => NativeStoreInit;
 
-type AllFunctions<T> = { [K in keyof T]: (...args: any[]) => any };
+export type AllFunctions<T> = { [K in keyof T]: (...args: any[]) => any };
 
 export interface Adapter<State, NativeStore, NativeStoreInit, NativeHooks extends AllFunctions<NativeHooks>, NativeClientHooks extends AllFunctions<NativeClientHooks>> {
   createNativeStore: (nativeStoreInit: NativeStoreInit) => NativeStore;
   getSetState: (nativeStore: NativeStore) => (state: Partial<State>) => void;
-  getHooks: (getNativeStore: () => NativeStore) => NativeHooks;
-  getClientHooks: (getNativeStore: () => NativeStore, ready: boolean) => NativeClientHooks;
+  useHooks: (useNativeStore: () => NativeStore) => NativeHooks;
+  useClientHooks: (useNativeStore: () => NativeStore, ready: boolean) => NativeClientHooks;
   empty: NativeStore;
 }
