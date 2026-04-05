@@ -45,7 +45,7 @@ export const getAdapter: <State extends object>() => Adapter<
         proxy = valtioProxy(initialState);
         return proxy;
       } else {
-        return init;
+        return valtioProxy(init);
       }
     },
     getSetState: (proxy) => (
