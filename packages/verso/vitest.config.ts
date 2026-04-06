@@ -4,6 +4,7 @@ import path from 'path';
 export default defineConfig({
   define: {
     IS_SERVER: 'true',
+    IS_DEV: 'false',
   },
   resolve: {
     alias: {

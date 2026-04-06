@@ -44,8 +44,8 @@ describe('StyleTransitioner', () => {
 
   beforeEach(() => {
     document.head.innerHTML = '';
-    // Empty manifest: all stylesheets go through pageStylesheets param.
-    st = getStyleTransitioner({});
+    // Manifest with an empty route entry: all stylesheets go through pageStylesheets param.
+    st = getStyleTransitioner({ [ROUTE]: { scripts: [], stylesheets: [] } });
     linkLoadObserver = new MutationObserver((mutations) => {
       for (const m of mutations) {
         m.addedNodes.forEach((node) => {
@@ -202,6 +202,108 @@ describe('StyleTransitioner', () => {
       // Page 4: remove all
       (await st.transitionStyles(ROUTE, []))();
       expect(getLinks()).toHaveLength(0);
+    });
+  });
+
+  describe('prod manifest stylesheets', () => {
+    test('includes route stylesheets from the manifest', async () => {
+      st = getStyleTransitioner({
+        TestRoute: { scripts: [], stylesheets: ['/route.css'] },
+      });
+      st.readServerStyles();
+
+      await st.transitionStyles(ROUTE, [extStyle('/page.css')]);
+      const hrefs = getLinks().map(l => new URL(l.href).pathname);
+      expect(hrefs).toContain('/route.css');
+      expect(hrefs).toContain('/page.css');
+    });
+
+    test('deduplicates route and page stylesheets', async () => {
+      st = getStyleTransitioner({
+        TestRoute: { scripts: [], stylesheets: ['/shared.css'] },
+      });
+      st.readServerStyles();
+
+      await st.transitionStyles(ROUTE, [extStyle('/shared.css')]);
+      expect(getLinks()).toHaveLength(1);
+    });
+
+    test('deduplicates route stylesheets against server-rendered styles', async () => {
+      st = getStyleTransitioner({
+        TestRoute: { scripts: [], stylesheets: ['/server.css'] },
+      });
+      addServerLink('/server.css');
+      st.readServerStyles();
+
+      await st.transitionStyles(ROUTE, []);
+      expect(getLinks()).toHaveLength(1);
+    });
+
+    test('throws if manifest is null', async () => {
+      st = getStyleTransitioner(null);
+      st.readServerStyles();
+
+      await expect(st.transitionStyles(ROUTE, [])).rejects.toThrow('no bundle manifest');
+    });
+
+    test('throws if route is missing from manifest', async () => {
+      st = getStyleTransitioner({});
+      st.readServerStyles();
+
+      await expect(st.transitionStyles(ROUTE, [])).rejects.toThrow('no bundles for route');
+    });
+  });
+
+  describe('style ordering', () => {
+    test('route stylesheets appear before page stylesheets', async () => {
+      st = getStyleTransitioner({
+        TestRoute: { scripts: [], stylesheets: ['/route.css'] },
+      });
+      st.readServerStyles();
+
+      await st.transitionStyles(ROUTE, [extStyle('/page.css')]);
+      const hrefs = getLinks().map(l => new URL(l.href).pathname);
+      expect(hrefs).toEqual(['/route.css', '/page.css']);
+    });
+
+    test('preserves order within page stylesheets', async () => {
+      st.readServerStyles();
+
+      await st.transitionStyles(ROUTE, [
+        extStyle('/a.css'),
+        extStyle('/b.css'),
+        extStyle('/c.css'),
+      ]);
+      const hrefs = getLinks().map(l => new URL(l.href).pathname);
+      expect(hrefs).toEqual(['/a.css', '/b.css', '/c.css']);
+    });
+
+    test('reorders kept styles to match new page order', async () => {
+      addServerLink('/b.css');
+      addServerLink('/a.css');
+      st.readServerStyles();
+
+      // New page wants /a before /b — the re-append should reorder them
+      await st.transitionStyles(ROUTE, [extStyle('/a.css'), extStyle('/b.css')]);
+      const hrefs = getLinks().map(l => new URL(l.href).pathname);
+      expect(hrefs).toEqual(['/a.css', '/b.css']);
+    });
+
+    test('inline styles are ordered relative to link styles', async () => {
+      st.readServerStyles();
+
+      await st.transitionStyles(ROUTE, [
+        extStyle('/first.css'),
+        inlineStyle('.middle { color: red }'),
+        extStyle('/last.css'),
+      ]);
+      const nodes = [...document.head.querySelectorAll<HTMLElement>('link[href], style')];
+      const keys = nodes.map(n =>
+        n.tagName === 'LINK'
+          ? new URL((n as HTMLLinkElement).href).pathname
+          : (n as HTMLStyleElement).innerHTML,
+      );
+      expect(keys).toEqual(['/first.css', '.middle { color: red }', '/last.css']);
     });
   });
 
