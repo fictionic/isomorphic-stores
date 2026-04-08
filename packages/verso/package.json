@@ -18,6 +18,9 @@
     },
     "./globals": "./globals.d.ts"
   },
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "build": "tsup",
     "test": "npx vitest run",

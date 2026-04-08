@@ -8,6 +8,7 @@
     "packages/demo": {
       "name": "@verso-js/demo",
       "dependencies": {
+        "@verso-js/playwright": "workspace:*",
         "@verso-js/store-adapter-zustand": "workspace:*",
         "@verso-js/stores": "workspace:*",
         "@verso-js/verso": "workspace:*",
@@ -22,6 +23,12 @@
         "@types/react-dom": "^19.2.3",
         "typescript": "^5",
         "vite": "^8.0.0",
+      },
+    },
+    "packages/playwright": {
+      "name": "@verso-js/playwright",
+      "peerDependencies": {
+        "@playwright/test": ">=1.0.0",
       },
     },
     "packages/store-adapter-redux": {
@@ -326,6 +333,8 @@
     "@types/react-dom": ["@types/react-dom@19.2.3", "", { "peerDependencies": { "@types/react": "^19.2.0" } }, "sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ=="],
 
     "@verso-js/demo": ["@verso-js/demo@workspace:packages/demo"],
+
+    "@verso-js/playwright": ["@verso-js/playwright@workspace:packages/playwright"],
 
     "@verso-js/store-adapter-redux": ["@verso-js/store-adapter-redux@workspace:packages/store-adapter-redux"],
 

@@ -1,0 +1,10 @@
+{
+  "name": "@verso-js/playwright",
+  "private": true,
+  "exports": {
+    ".": "./src/fixtures.ts"
+  },
+  "peerDependencies": {
+    "@playwright/test": ">=1.0.0"
+  }
+}

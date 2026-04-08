@@ -15,6 +15,7 @@
     "@verso-js/verso": "workspace:*",
     "@verso-js/stores": "workspace:*",
     "@verso-js/store-adapter-zustand": "workspace:*",
+    "@verso-js/playwright": "workspace:*",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "jotai": "^2.18.1"
