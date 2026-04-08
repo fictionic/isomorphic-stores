@@ -25,6 +25,7 @@ import {
   type ProviderID,
   type UseCreateClientStore,
   type SetAsyncState,
+  type CreateStoreArgs,
 } from "./types";
 import {useIsoStoreLifecycle} from "./lifecycle";
 
@@ -48,7 +49,8 @@ function makeAsyncStateSetter<State>(
 }
 
 // currently, stores should not be defined dynamically, as this will lead to memory leaks
-const definitions: Map<DefinitionID, IsoStoreDefinition<any, any, any, any, any>> = new Map();
+// we're typing the values as any because of the shenanigans with CreateStoreArgs
+const definitions: Map<DefinitionID, any> = new Map();
 
 export function defineIsoStore<Opts, State extends object, Message, NativeStoreInit, A extends Adapter<State, any, NativeStoreInit, any, any>>(
   isoInit: IsoStoreInit<Opts, State, Message, NativeStoreInit>,
@@ -62,7 +64,8 @@ export function defineIsoStore<Opts, State extends object, Message, NativeStoreI
 
   const instancesByProvider: Map<ProviderID, IsoStoreInstance<NativeStore>> = new Map();
 
-  const createStore = (opts: Opts): IsoStoreInstance<NativeStore> => {
+  const createStore = (...args: CreateStoreArgs<Opts>): IsoStoreInstance<NativeStore> => {
+    const opts = args[0] as Opts;
     type PendingValue = { name: keyof State, promise: Promise<unknown> };
     const asyncKeys: Set<keyof State> = new Set();
     const pending: Array<PendingValue> = [];
@@ -123,14 +126,14 @@ export function defineIsoStore<Opts, State extends object, Message, NativeStoreI
     return instance.nativeStore;
   });
 
-  const useCreateClientStore: UseCreateClientStore<Opts, ClientHooksOf<A>> = (opts) => {
+  const useCreateClientStore: UseCreateClientStore<Opts, ClientHooksOf<A>> = (...args) => {
     const [ready, setReady] = useState<boolean>(false);
     const instanceRef = useRef<IsoStoreInstance<NativeStore> | null>(null);
 
     const providerId = useMemo(() => Symbol() as ProviderID, []);
 
     useEffect(() => {
-      const instance = createStore(opts); // ideally we'd support rerendering based on changes to opts
+      const instance = createStore(...args); // ideally we'd support rerendering based on changes to opts
       instance.whenReady.then(() => {
         setReady(true);
       });
