@@ -19,4 +19,4 @@ export { default as RootContainer } from './core/components/RootContainer';
 export { default as TheFold } from './core/components/TheFold';
 
 // Site setup
-export type { SiteConfig } from './core/router';
+export type { VersoRoutes } from './core/router';

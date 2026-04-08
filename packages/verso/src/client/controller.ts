@@ -1,4 +1,4 @@
-import {createRouter, type Router, type SiteConfig} from "../core/router";
+import {createRouter, type Router, type VersoRoutes} from "../core/router";
 import type {PageLoaders} from "./bootstrap";
 import {ResponderConfig} from "../core/handler/ResponderConfig";
 import {VersoRequest} from "../core/VersoRequest";
@@ -33,14 +33,14 @@ export interface NavigateOptions {
 }
 
 export class ClientController {
-  private site: SiteConfig;
+  private site: VersoRoutes;
   private router: Router;
   private pageLoaders: PageLoaders;
   private reactRoots: Root[];
   private styleTransitioner: StyleTransitioner;
   private scriptTransitioner: ScriptTransitioner;
 
-  constructor(site: SiteConfig, pageLoaders: PageLoaders, manifest: BundleManifest | null) {
+  constructor(site: VersoRoutes, pageLoaders: PageLoaders, manifest: BundleManifest | null) {
     this.site = site;
     this.router = createRouter(site.routes);
     this.pageLoaders = pageLoaders;
@@ -141,8 +141,8 @@ export class ClientController {
 
     // ok we're committing to the new location
     if (!replace) {
-      history.pushState(null, '', url); // TODO: need to avoid clobbering user-level pushstates... reactServerFrame
-      // TODO replaceState?
+      history.pushState(null, '', url);
+      // TODO: do we need something like reactServerFrame to mark history frames as ours?
     }
 
     // =header=

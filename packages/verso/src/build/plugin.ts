@@ -4,7 +4,7 @@ import { writeFile } from 'node:fs/promises';
 import react from '@vitejs/plugin-react';
 import type { Plugin, ViteDevServer } from 'vite';
 import type { VersoConfig } from '../VersoConfig';
-import type { SiteConfig, Routes } from '../core/router';
+import type { VersoRoutes, RoutesMap } from '../core/router';
 import type { RouteHandler } from '../core/handler/RouteHandler';
 import type { Script, Stylesheet } from '../core/handler/Page';
 import type { BundleManifest } from './bundle';
@@ -46,8 +46,8 @@ export default function verso(options: VersoConfig): Plugin[] {
   const routesDir = path.dirname(routesPath);
 
   // Lazily populated after Vite server is up (dev) or at build time
-  let site: SiteConfig | undefined;
-  let routes: Routes | undefined;
+  let site: VersoRoutes | undefined;
+  let routes: RoutesMap | undefined;
   let isBuild = false;
   let isSSRBuild = false;
   let handlerPathToRoute: Record<string, string> = {};
@@ -75,7 +75,7 @@ export default function verso(options: VersoConfig): Plugin[] {
           // type inspection happens in buildStart via a temporary Vite
           // server that can process the full module graph.
           if (!routes) {
-            site = await importModule<SiteConfig>(routesPath);
+            site = await importModule<VersoRoutes>(routesPath);
             routes = site.routes;
 
             handlerPathToRoute = {};
@@ -265,7 +265,7 @@ export default function verso(options: VersoConfig): Plugin[] {
         let allMiddleware: any[];
         let currentRouteStylesheets: Record<string, Stylesheet[]> = {};
         const setupPromise = (async () => {
-          site = await ssrLoadDefault<SiteConfig>(vite, routesPath);
+          site = await ssrLoadDefault<VersoRoutes>(vite, routesPath);
           routes = site.routes;
           router = createRouter(routes);
 

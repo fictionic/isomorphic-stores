@@ -2,12 +2,12 @@ import {match, type ParamData} from "path-to-regexp";
 import {ensureArray} from "../util/array";
 import type {MiddlewareDefinition} from "../core/handler/Middleware";
 
-export type SiteConfig = {
+export type VersoRoutes = {
   middleware?: MiddlewareDefinition[];
-  routes: Routes;
+  routes: RoutesMap;
 };
 
-export type Routes = {
+export type RoutesMap = {
   [routeName: string]: {
     path: string;
     handler: string;
@@ -26,7 +26,7 @@ export interface Router {
   matchRoute: (path: string, method: string) => RouteMatch | null;
 };
 
-export function createRouter(routes: Routes): Router {
+export function createRouter(routes: RoutesMap): Router {
   const compiled = Object.entries(routes).map(([routeName, routeConfig]) => {
     const { path, handler, method } = routeConfig;
     const methods = !!method ? ensureArray(method) : ['GET'];

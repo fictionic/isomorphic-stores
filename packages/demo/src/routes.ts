@@ -1,4 +1,4 @@
-import type { SiteConfig } from '@verso-js/verso';
+import type { VersoRoutes } from '@verso-js/verso';
 import PageHeader from './PageHeader';
 
 export default {
@@ -25,4 +25,4 @@ export default {
       handler: './endpoints/ActivityEndpoint',
     },
   }
-} satisfies SiteConfig;
+} satisfies VersoRoutes;

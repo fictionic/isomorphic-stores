@@ -1,11 +1,11 @@
 import type {BundleResult} from "../build/bundle";
 import type {Stylesheet} from "../core/handler/Page";
-import {createRouter, type SiteConfig} from "../core/router";
+import {createRouter, type VersoRoutes} from "../core/router";
 import {handleRoute} from "../server/handleRoute";
 import {createViteBundleLoader} from "../core/middleware/ViteBundleLoader";
 
 interface VersoServerConfig {
-  site: SiteConfig;
+  site: VersoRoutes;
   bundleResult: BundleResult;
   urlPrefix?: string;
   renderTimeout?: number;
