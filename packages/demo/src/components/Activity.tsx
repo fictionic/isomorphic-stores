@@ -10,10 +10,10 @@ export function Activity() {
   return (
     <Card
       title="Activity"
-      tag="ActivityStore · clientOnly"
+      tag="ActivityStore · setNonBlockingAsync"
       description={
         <>
-          <code>clientOnly</code> doesn't contribute to <code>whenReady</code> — this root streams
+          <code>setNonBlockingAsync</code> doesn't contribute to <code>whenReady</code> — this root streams
           immediately. The recent items list is triggered after mount and loads ~1.5s later. The live
           counter is always available.
         </>
@@ -30,7 +30,7 @@ export function Activity() {
             </div>
           </div>
         </div>
-        <Label>Recent activity (clientOnly — loads ~1.5s after mount)</Label>
+        <Label>Recent activity (setNonBlockingAsync — loads ~1.5s after mount)</Label>
         {recentItems.length === 0 ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div

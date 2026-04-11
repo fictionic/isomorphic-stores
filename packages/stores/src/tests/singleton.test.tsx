@@ -90,8 +90,8 @@ test("useClientHooks: returns not ready initially, then ready after whenReady", 
   let resolveName!: (v: string) => void;
   const Store = asSingleton(
     defineZustandIsoStore<{}, { name: string }>(
-      (_, { waitFor }) => () => ({
-        ...waitFor("name", new Promise<string>(res => { resolveName = res; }), "loading"),
+      (_, { setAsync }) => () => ({
+        ...setAsync("name", new Promise<string>(res => { resolveName = res; })),
       })
     )
   );

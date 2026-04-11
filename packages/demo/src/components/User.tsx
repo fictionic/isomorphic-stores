@@ -12,10 +12,10 @@ export function User() {
   return (
     <Card
       title="User Profile"
-      tag="ProfileStore · waitFor"
+      tag="ProfileStore · setAsync"
       description={
         <>
-          <code>waitFor</code> registers async promises that block <code>whenReady</code> — the SSR
+          <code>setAsync</code> registers async promises that block <code>whenReady</code> — the SSR
           framework holds the response until resolved. Username and email are fetched server-side and
           streamed into the HTML. FOO BAR
         </>

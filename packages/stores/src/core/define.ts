@@ -5,7 +5,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type RefObject,
 } from "react";
 import {getStoreProvider} from "./getStoreProvider";
 import {
@@ -24,8 +23,10 @@ import {
   type OnMessage,
   type ProviderID,
   type UseCreateClientStore,
-  type SetAsyncState,
   type CreateStoreArgs,
+  type WaitFor,
+  type SetAsync,
+  type SetNonBlockingAsync,
 } from "./types";
 import {useIsoStoreLifecycle} from "./lifecycle";
 
@@ -33,20 +34,10 @@ type NativeStoreOf<A> = A extends Adapter<any, infer N, any, any, any> ? N : nev
 type HooksOf<A> = A extends Adapter<any, any, any, infer H, any> ? H : never;
 type ClientHooksOf<A> = A extends Adapter<any, any, any, any, infer C> ? C : never;
 
-function makeAsyncStateSetter<State>(
-  pending: Array<{name: keyof State, promise: Promise<unknown>}>,
-  keys: Set<keyof State>,
-): SetAsyncState<State> {
-  // defined via function because otherwise I'd have to write the types on the next line twice
-  return <K extends keyof State, V extends State[K]>(name: K, promise: Promise<V>, initialValue: V) => {
-    if (keys.has(name)) {
-      throw new Error(`isomorphic-stores: encountered duplicate async key '${String(name)}'; aborting`);
-    }
-    keys.add(name);
-    pending.push({ name, promise });
-    return { [name]: initialValue } as { [key in K]: V };
-  };
-}
+type PendingValue<T> = {
+  promise: Promise<T>;
+  consumer: (t: T) => void;
+};
 
 // currently, stores should not be defined dynamically, as this will lead to memory leaks
 // we're typing the values as any because of the shenanigans with CreateStoreArgs
@@ -66,37 +57,70 @@ export function defineIsoStore<Opts, State extends object, Message, NativeStoreI
 
   const createStore = (...args: CreateStoreArgs<Opts>): IsoStoreInstance<NativeStore> => {
     const opts = args[0] as Opts;
-    type PendingValue = { name: keyof State, promise: Promise<unknown> };
-    const asyncKeys: Set<keyof State> = new Set();
-    const pending: Array<PendingValue> = [];
-    const waitFor = makeAsyncStateSetter<State>(pending, asyncKeys);
+    const asyncKeys = new Set<keyof State>();
+    const blocking: Set<PendingValue<any>> = new Set();
+    const nonBlocking: Set<PendingValue<any>> = new Set();
 
-    const clientPending: Array<PendingValue> = [];
-    const clientOnly = makeAsyncStateSetter<State>(clientPending, asyncKeys);
+    const trackPendingValue = <T>(pending: Set<PendingValue<any>>, promise: Promise<T>, consumer: (t: T) => void) => {
+      pending.add({ promise, consumer });
+    };
+
+    // block on a promise and ignore the fulfilled value
+    const waitFor: WaitFor = (p) => trackPendingValue(blocking, p, () => {});
+
+    function makeAsyncSetter(pendingValues: Set<PendingValue<any>>, setState: (update: Partial<State>) => void) {
+      return <K extends keyof State, V extends State[K]>(key: K, promise: Promise<V>, initialValue?: V) => {
+        if (asyncKeys.has(key)) {
+          throw new Error(`duplicate async key '${String(key)}'`);
+        }
+        trackPendingValue(
+          pendingValues,
+          promise,
+          (value) => {
+            const update = { [key]: value } as Partial<State>;
+            setState(update);
+          },
+        );
+        return { [key]: initialValue } as { [_ in K]: V };
+      };
+    }
+
+    let nativeStore!: NativeStore;
+    const setState = (update: Partial<State>) => {
+      const setState = adapter.getSetState(nativeStore);
+      setState(update);
+    };
+
+    // block on a promise and set the fulfilled value on the state at the given key
+    const setAsync: SetAsync<State> = makeAsyncSetter(blocking, setState);
+
+    // set the fulfilled value of a promise on the state at the given key without blocking
+    const setNonBlockingAsync: SetNonBlockingAsync<State> = makeAsyncSetter(nonBlocking, setState);
+
+    const didMountDfd = Promise.withResolvers<void>();
 
     const messageHandlers: Array<MessageHandler<Message>> = [];
     const onMessage: OnMessage<Message> = (handler) => {
       messageHandlers.push(handler);
     };
 
-    const nativeStoreInit = isoInit(opts, { waitFor, onMessage, clientOnly });
-    const nativeStore = adapter.createNativeStore(nativeStoreInit);
+    const nativeStoreInit = isoInit(opts, { waitFor, setAsync, setNonBlockingAsync, onMessage });
+    nativeStore = adapter.createNativeStore(nativeStoreInit);
 
-    const resolvePending = (items: Array<PendingValue>) =>
-      Promise.all(items.map(async ({ name, promise }) => {
-        try {
-          const value = await promise;
-          const setState = adapter.getSetState(nativeStore);
-          setState({ [name]: value } as Partial<State>);
-        } catch(e) {
-          options?.onError?.(new Error(`isomorphic-stores: waitFor promise rejected; refusing to set key '${String(name)}'`, { cause: e }));
-        }
-      })).then(() => {});
+    async function handlePending(pendingValues: Set<PendingValue<unknown>>) {
+      await Promise.all(pendingValues.values().map((entry) => {
+        return entry.promise.then(
+          entry.consumer,
+          (err) => {
+            options?.onError?.(new Error('pending promise rejected', { cause: err }));
+          },
+        );
+      }));
+    }
 
-    const whenReady = resolvePending(pending);
+    const whenReady = handlePending(blocking);
 
-    const didMountDfd = Promise.withResolvers<void>();
-    didMountDfd.promise.then(() => resolvePending(clientPending));
+    didMountDfd.promise.then(() => handlePending(nonBlocking));
 
     return {
       whenReady,

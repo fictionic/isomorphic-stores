@@ -16,7 +16,7 @@ export const ProfileStore = defineZustandIsoStore<
   ProfileState,
   ProfileMessage
 >(
-  ({ userId }, { waitFor, onMessage }) =>
+  ({ userId }, { setAsync, onMessage }) =>
     (set) => {
       let initialUsername = '';
       let initialEmail = '';
@@ -35,8 +35,8 @@ export const ProfileStore = defineZustandIsoStore<
         });
 
       return {
-        ...waitFor('username', userPromise.then((d) => d.username), ''),
-        ...waitFor('email', userPromise.then((d) => d.email), ''),
+        ...setAsync('username', userPromise.then((d) => d.username)),
+        ...setAsync('email', userPromise.then((d) => d.email)),
         rename: (name) => set({ username: name }),
       };
     },

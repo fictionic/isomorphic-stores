@@ -47,13 +47,13 @@ test("useStore outside provider throws", () => {
   }
 });
 
-// ─── waitFor ─────────────────────────────────────────────────────────────────
+// ─── setAsync ───────────────────────────────────────────────────────────────
 
-test("waitFor: initial value shown before promise resolves", async () => {
+test("setAsync: initial value shown before promise resolves", async () => {
   let resolveName!: (v: string) => void;
   const NameStore = defineZustandIsoStore<{}, { name: string }>(
-    (_, { waitFor }) => () => ({
-      ...waitFor("name", new Promise<string>(res => { resolveName = res; }), "loading"),
+    (_, { setAsync }) => () => ({
+      ...setAsync("name", new Promise<string>(res => { resolveName = res; })),
     })
   );
 
@@ -76,14 +76,14 @@ test("waitFor: initial value shown before promise resolves", async () => {
   await waitForDom(() => screen.getByText("Alice"));
 });
 
-test("waitFor: whenReady resolves only after all promises settle", async () => {
+test("setAsync: whenReady resolves only after all promises settle", async () => {
   let resolveName!: (v: string) => void;
   let resolveAge!: (v: number) => void;
 
   const ProfileStore = defineZustandIsoStore<{}, { name: string; age: number }>(
-    (_, { waitFor }) => () => ({
-      ...waitFor("name", new Promise<string>(res => { resolveName = res; }), ""),
-      ...waitFor("age", new Promise<number>(res => { resolveAge = res; }), 0),
+    (_, { setAsync }) => () => ({
+      ...setAsync("name", new Promise<string>(res => { resolveName = res; })),
+      ...setAsync("age", new Promise<number>(res => { resolveAge = res; })),
     })
   );
 
@@ -103,12 +103,12 @@ test("waitFor: whenReady resolves only after all promises settle", async () => {
   expect(resolved).toBe(true);
 });
 
-test("waitFor: rejection triggers onError, keeps initial value, whenReady still resolves", async () => {
+test("setAsync: rejection triggers onError, keeps initial value, whenReady still resolves", async () => {
   const errors: unknown[] = [];
 
   const FailStore = defineZustandIsoStore<{}, { name: string }>(
-    (_, { waitFor }) => () => ({
-      ...waitFor("name", Promise.reject(new Error("fetch failed")), "fallback"),
+    (_, { setAsync }) => () => ({
+      ...setAsync("name", Promise.reject(new Error("fetch failed"))),
     }),
     { onError: (e) => errors.push(e) }
   );
@@ -165,14 +165,14 @@ test("actions update state and trigger re-render", async () => {
   expect(screen.getByText("1")).toBeTruthy();
 });
 
-// ─── clientOnly ──────────────────────────────────────────────────────────────
+// ─── setNonBlockingAsync ────────────────────────────────────────────────────
 
-test("clientOnly: does not contribute to whenReady", async () => {
+test("setNonBlockingAsync: does not contribute to whenReady", async () => {
   let resolveData!: (v: string) => void;
 
   const DataStore = defineZustandIsoStore<{}, { data: string }>(
-    (_, { clientOnly }) => () => ({
-      ...clientOnly("data", new Promise<string>(res => { resolveData = res; }), "pending"),
+    (_, { setNonBlockingAsync }) => () => ({
+      ...setNonBlockingAsync("data", new Promise<string>(res => { resolveData = res; }), "pending"),
     })
   );
 
@@ -181,17 +181,17 @@ test("clientOnly: does not contribute to whenReady", async () => {
   store.whenReady.then(() => { whenReadyResolved = true; });
 
   await act(async () => {});
-  expect(whenReadyResolved).toBe(true); // resolves even though clientOnly promise is still pending
+  expect(whenReadyResolved).toBe(true); // resolves even though setNonBlockingAsync promise is still pending
 
   resolveData("loaded"); // resolve it so we don't leak the promise
 });
 
-test("clientOnly: initial value shown before mount; resolves after mount", async () => {
+test("setNonBlockingAsync: initial value shown before mount; resolves after mount", async () => {
   let resolveData!: (v: string) => void;
 
   const DataStore = defineZustandIsoStore<{}, { data: string }>(
-    (_, { clientOnly }) => () => ({
-      ...clientOnly("data", new Promise<string>(res => { resolveData = res; }), "pending"),
+    (_, { setNonBlockingAsync }) => () => ({
+      ...setNonBlockingAsync("data", new Promise<string>(res => { resolveData = res; }), "pending"),
     })
   );
 
@@ -274,37 +274,37 @@ test("broadcast delivers message to all mounted instances", async () => {
 
 // ─── Duplicate async keys ─────────────────────────────────────────────────────
 
-test("waitFor: duplicate key throws", () => {
+test("setAsync: duplicate key throws", () => {
   const Store = defineZustandIsoStore<{}, { name: string }>(
-    (_, { waitFor }) => () => ({
-      ...waitFor("name", Promise.resolve("a"), ""),
-      ...waitFor("name", Promise.resolve("b"), ""),
+    (_, { setAsync }) => () => ({
+      ...setAsync("name", Promise.resolve("a")),
+      ...setAsync("name", Promise.resolve("b")),
     })
   );
 
-  expect(() => Store.createStore({})).toThrow("duplicate async key 'name'");
+  expect(() => Store.createStore({})).toThrow("duplicate async key");
 });
 
-test("clientOnly: duplicate key throws", () => {
+test("setNonBlockingAsync: duplicate key throws", () => {
   const Store = defineZustandIsoStore<{}, { data: string }>(
-    (_, { clientOnly }) => () => ({
-      ...clientOnly("data", Promise.resolve("a"), ""),
-      ...clientOnly("data", Promise.resolve("b"), ""),
+    (_, { setNonBlockingAsync }) => () => ({
+      ...setNonBlockingAsync("data", Promise.resolve("a"), ""),
+      ...setNonBlockingAsync("data", Promise.resolve("b"), ""),
     })
   );
 
-  expect(() => Store.createStore({})).toThrow("duplicate async key 'data'");
+  expect(() => Store.createStore({})).toThrow("duplicate async key");
 });
 
-test("waitFor and clientOnly: same key throws", () => {
+test("setAsync and setNonBlockingAsync: same key throws", () => {
   const Store = defineZustandIsoStore<{}, { name: string }>(
-    (_, { waitFor, clientOnly }) => () => ({
-      ...waitFor("name", Promise.resolve("a"), ""),
-      ...clientOnly("name", Promise.resolve("b"), ""),
+    (_, { setAsync, setNonBlockingAsync }) => () => ({
+      ...setAsync("name", Promise.resolve("a")),
+      ...setNonBlockingAsync("name", Promise.resolve("b"), ""),
     })
   );
 
-  expect(() => Store.createStore({})).toThrow("duplicate async key 'name'");
+  expect(() => Store.createStore({})).toThrow("duplicate async key");
 });
 
 // ─── Multiple stores in one provider ─────────────────────────────────────────

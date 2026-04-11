@@ -43,7 +43,7 @@ export default definePage(() => {
             <h1 className="demo-header-title">isomorphic-stores</h1>
             <p className="demo-header-subtitle">
               Framework-agnostic SSR state management. Stores are created server-side,
-              async data is declared via <code>waitFor</code>, and the SSR framework blocks
+              async data is declared via <code>setAsync</code>, and the SSR framework blocks
               rendering until the store is ready. Roots stream in progressively; <code>TheFold</code>
               {' '}triggers client bootstrap before all roots have arrived.
             </p>

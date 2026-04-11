@@ -47,11 +47,14 @@ export interface IsoStoreDefinition<Opts, Message, NativeStore, NativeHooks exte
   };
 }
 
-// ---------------------------------------------------------------------------
-// Adapter author API
-// ---------------------------------------------------------------------------
+export type WaitFor = (p: Promise<unknown>) => void;
 
-export type SetAsyncState<State> = <K extends keyof State, V extends State[K]>(
+export type SetAsync<State> = <K extends keyof State, V extends State[K]>(
+  name: K,
+  promise: Promise<V>,
+) => { [_ in K]: V };
+
+export type SetNonBlockingAsync<State> = <K extends keyof State, V extends State[K]>(
   name: K,
   promise: Promise<V>,
   initialValue: V,
@@ -61,8 +64,9 @@ export type OnMessage<Message> = (handler: MessageHandler<Message>) => void;
 
 // Functions passed to the outer factory when defining a store.
 export interface IsoInitFns<State, Message> {
-  waitFor: SetAsyncState<State>;
-  clientOnly: SetAsyncState<State>;
+  waitFor: WaitFor;
+  setAsync: SetAsync<State>;
+  setNonBlockingAsync: SetNonBlockingAsync<State>;
   onMessage: OnMessage<Message>;
 }
 

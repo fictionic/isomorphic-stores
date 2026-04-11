@@ -13,10 +13,10 @@ export function Prefs() {
   return (
     <Card
       title="Preferences"
-      tag="ThemeStore · waitFor"
+      tag="ThemeStore · setAsync"
       description={
         <>
-          Theme and accent are fetched server-side via <code>waitFor</code> and arrive in the first
+          Theme and accent are fetched server-side via <code>setAsync</code> and arrive in the first
           streaming batch alongside the user profile.
         </>
       }

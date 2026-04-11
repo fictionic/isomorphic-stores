@@ -8,9 +8,9 @@ interface ActivityState {
 }
 
 export const ActivityStore = asSingleton(defineZustandIsoStore<Record<string, never>, ActivityState>(
-  (_opts, { clientOnly }) =>
+  (_opts, { setNonBlockingAsync }) =>
     (set, get) => ({
-      ...clientOnly('recentItems', fetchActivity(), [] as string[]),
+      ...setNonBlockingAsync('recentItems', fetchActivity(), [] as string[]),
       liveCount: 0,
       increment: () => set({ liveCount: get().liveCount + 1 }),
     }),

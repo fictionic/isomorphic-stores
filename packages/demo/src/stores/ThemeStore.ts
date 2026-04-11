@@ -10,13 +10,13 @@ interface ThemeState {
 }
 
 export const ThemeStore = asSingleton(defineZustandIsoStore<{ userId: number }, ThemeState>(
-  ({ userId }, { waitFor }) =>
+  ({ userId }, { setAsync }) =>
     (set) => {
       const themePromise = fetch(`/api/theme/${userId}`)
         .then(res => res.json() as Promise<{ theme: 'light' | 'dark'; accent: string }>);
       return {
-        ...waitFor('theme', themePromise.then((d) => d.theme), 'light' as 'light' | 'dark'),
-        ...waitFor('accent', themePromise.then((d) => d.accent), '#6366f1'),
+        ...setAsync('theme', themePromise.then((d) => d.theme)),
+        ...setAsync('accent', themePromise.then((d) => d.accent)),
         setTheme: (theme) => set({ theme }),
         setAccent: (accent) => set({ accent }),
       };
