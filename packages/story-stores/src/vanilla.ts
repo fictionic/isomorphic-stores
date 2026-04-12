@@ -8,19 +8,26 @@ type Unsub = () => void;
 
 export type Equals<T> = (a: T, b: T) => boolean;
 
-type Select<State> = <T>(selector: Selector<State, T>) => T;
-type Update<State> = (updater: Updater<State>) => void;
-type Subscribe<State> = <T>(selector: Selector<State, T>, consumer: Consumer<T>, equals?: Equals<T>) => Unsub
+export type Select<State> = <T>(selector: Selector<State, T>) => T;
+export type Update<State> = (updater: Updater<State>) => void;
+export type Subscribe<State> = <T>(selector: Selector<State, T>, consumer: Consumer<T>, equals?: Equals<T>) => Unsub
 
 export type StoryStore<State> = {
   select: Select<State>;
   update: Update<State>;
   subscribe: Subscribe<State>;
+  selectInitial: Select<State>;
 };
 
 export type Listen = <S, T>(store: StoryStore<S>, selector: Selector<S, T>, consumer: Consumer<T>, equals?: Equals<T>) => Unsub;
 
-export type StoryInit<State> = (fns: ({select: Select<State>, update: Update<State>, listen: Listen})) => State;
+export type StoryInitFns<State> = {
+  select: Select<State>;
+  update: Update<State>;
+  listen: Listen;
+};
+
+export type StoryInit<State> = (fns: StoryInitFns<State>) => State;
 
 // cross-store, module-level state. should not be used during server rendering.
 let batchDepth = 0;
@@ -63,14 +70,10 @@ export const createStoryStore = <State extends object>(init: StoryInit<State>): 
     };
   };
 
-  const getState = () => state;
-
   const emit = () => {
     for (const l of listeners) {
       const { selector, consumer, last, equals } = l;
-      const selected = selector(getState());
-      // ^fetch state fresh each time because consumers
-      // might update it
+      const selected = selector(state);
       if (!equals(selected, last)) {
         consumer(selected);
         l.last = selected;
@@ -78,10 +81,10 @@ export const createStoryStore = <State extends object>(init: StoryInit<State>): 
     }
   };
 
-  const select = <T>(selector: Selector<State, T>) => selector(state);
+  const select: Select<State> = (selector) => selector(state);
 
   const update: Update<State> = (recipe) => {
-    state = produce(getState(), recipe); // pre-frozen
+    state = produce(state, recipe); // pre-frozen
     if (batchDepth > 0) {
       pendingEmits.add(emit); // will dedupe if the same store is already pending an emit
     } else {
@@ -92,7 +95,11 @@ export const createStoryStore = <State extends object>(init: StoryInit<State>): 
   const didInitRef = { current: false };
   const listenerConsumers: Array<() => void> = []; // TODO better name
 
-  const listen: Listen = <S, T>(store: StoryStore<S>, selector: Selector<S, T>, consumer: Consumer<T>, equals?: Equals<T>) => {
+  // TODO: right now listen() is pretty rudimentary. a more robust version would:
+  // - create a dependency graph
+  // - check it for cycles and throw if it finds any
+  // - solve the "diamond problem" (D <= {C, B} <= A) -- only update D once with batched update from B and C
+  const listen: Listen = (store, selector, consumer, equals) => {
     if (didInitRef.current) {
       throw new Error("cannot listen after init");
     }
@@ -103,6 +110,9 @@ export const createStoryStore = <State extends object>(init: StoryInit<State>): 
   state = init({ select, update, listen });
   Object.freeze(state);
 
+  const initialState = state; // for getServerSnapshot
+  const selectInitial: Select<State> = (selector) => selector(initialState);
+
   didInitRef.current = true;
   batch(() => listenerConsumers.forEach((fn) => fn()));
 
@@ -110,5 +120,8 @@ export const createStoryStore = <State extends object>(init: StoryInit<State>): 
     select,
     update,
     subscribe,
+    selectInitial,
   };
 }
+
+export { shallow } from './shallow';

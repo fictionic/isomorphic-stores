@@ -5,7 +5,6 @@
   "exports": {
     "./vanilla": "./src/vanilla.ts",
     "./react": "./src/react.ts",
-    "./shallow": "./src/shallow.ts",
     "./adapter": "./src/adapter.ts"
   },
   "scripts": {

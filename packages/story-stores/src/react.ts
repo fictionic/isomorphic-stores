@@ -1,23 +1,52 @@
-import {useSyncExternalStore} from 'react';
-import {createStoryStore, type StoryInit, type Selector, type StoryStore, type Equals} from "./vanilla";
+import {useSyncExternalStore, useCallback, useRef} from 'react';
+import {createStoryStore, type StoryInit, type Selector, type StoryStore, type Equals, shallow, type Select} from "./vanilla";
 
-type UseStoryStore = <State, T>(store: StoryStore<State>, selector: Selector<State, T>, equals?: Equals<T>) => T;
+type UseStoryStore = <State, T>(store: StoryStore<State>, selector: Selector<State, T>) => T;
 
-export const useStoryStore: UseStoryStore = (store, selector, equals = Object.is) => {
-  return useSyncExternalStore(
-    (cb) => store.subscribe(selector, cb, equals),
-    () => store.select(selector),
+const IDENTITY = <T>(a: T) => a;
+
+// we don't expose an `equals` param here because useStableSelector bakes
+// it into the selector, granting subscription filtering (within emit(), pre-react)
+// and stable references for the hook's return value.
+export const useStoryStore: UseStoryStore = (store, selector) => {
+  const snapshot = useSyncExternalStore(
+    (cb) => store.subscribe(selector, cb),
+    useCallback(() => store.select(IDENTITY), [store]),
+    useCallback(() => store.selectInitial(IDENTITY), [store]),
   );
+  return selector(snapshot);
 };
 
-export type UseStory<State> = <T>(selector: Selector<State, T>, equals?: Equals<T>) => T;
+export type UseStory<State> = Select<State>;
 
-type CreateStory<State> = UseStory<State> & StoryStore<State>;
+export type Story<State> = UseStory<State> & StoryStore<State>;
 
-const createStory = <State extends object>(init: StoryInit<State>): CreateStory<State> => {
+export const createStory = <State extends object>(init: StoryInit<State>): Story<State> => {
   const store = createStoryStore(init);
-  const useStory: UseStory<State> = <T>(selector: Selector<State, T>, equals = Object.is) => useStoryStore(store, selector, equals);
+  const useStory: UseStory<State> = <T>(selector: Selector<State, T>) => useStoryStore(store, selector);
   Object.assign(useStory, store);
-  return useStory as CreateStory<State>;
+  return useStory as Story<State>;
 };
 
+
+export const useStableSelector = <State, T>(selector: Selector<State, T>, equals: Equals<T>): Selector<State, T> => {
+  type Selection = { value: T } | null;
+  const prevRef = useRef<Selection>(null);
+  return (state) => {
+    const next = selector(state);
+    if (!prevRef.current) {
+      prevRef.current = { value: next };
+      return next;
+    }
+    const prev = prevRef.current.value
+    if (equals(prev, next)) {
+      return prev;
+    }
+    prevRef.current.value = next;
+    return next;
+  };
+};
+
+export const useShallow = <State, T>(selector: Selector<State, T>): Selector<State, T> => {
+  return useStableSelector(selector, shallow);
+};

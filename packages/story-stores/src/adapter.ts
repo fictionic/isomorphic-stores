@@ -1,4 +1,4 @@
-import {batch as _batch, createStoryStore, type Equals, type Selector, type StoryInit, type StoryStore} from "./vanilla";
+import {batch as _batch, createStoryStore, type Selector, type StoryInit, type StoryStore} from "./vanilla";
 import {useStoryStore, type UseStory} from "./react";
 import {defineIsoStore, type Adapter, type IsoStoreInit} from "@verso-js/stores/adapter";
 import type {IsoStoreInstance} from "@verso-js/stores";
@@ -19,7 +19,7 @@ type StoryHooks<State> = {
   useStory: UseStory<State>;
 }
 
-type UseClientStory<State> = <T>(selector: Selector<State, T>, equals?: Equals<T>) => T | undefined;
+type UseClientStory<State> = <T>(selector: Selector<State, T>) => T | undefined;
 
 type StoryClientHooks<State> = {
   useStory: UseClientStory<State>;
@@ -34,7 +34,9 @@ export const getAdapter: <State extends object>() => Adapter<
 > = <State>() => {
   return {
     createNativeStore: (init) => {
-      return createStoryStore(init);
+      const store = createStoryStore(init);
+      store.selectInitial = store.select; // same deal as zustand
+      return store;
     },
     getSetState: (store) => {
       return (partial) => (
@@ -45,17 +47,17 @@ export const getAdapter: <State extends object>() => Adapter<
     },
     useHooks: (useNativeStore) => {
       return {
-        useStory: (selector, equals) => {
+        useStory: (selector) => {
           const store = useNativeStore();
-          return useStoryStore(store, selector, equals);
+          return useStoryStore(store, selector);
         },
       };
     },
     useClientHooks: (useNativeStore, ready) => {
       return {
-        useStory: (selector, equals) => {
+        useStory: (selector) => {
           const store = useNativeStore();
-          const result = useStoryStore(store, selector, equals);
+          const result = useStoryStore(store, selector);
           return ready ? result : undefined;
         },
       };
