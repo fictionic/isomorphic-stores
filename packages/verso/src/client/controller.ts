@@ -14,9 +14,10 @@ import {FETCH_CACHE_KEY, FN_HYDRATE_ROOTS_UP_TO, FN_RECEIVE_LATE_DATA_ARRIVAL, V
 import {Fetch} from "../core/fetch/Fetch";
 import {startClientRequest} from "../core/RequestLocalStorage";
 import {applyContainerProps} from "../core/components/RootContainer";
-import {getStyleTransitioner, type StyleTransitioner} from "./styles";
-import {getScriptTransitioner, type ScriptTransitioner} from "./scripts";
+import {StyleTransitioner} from "./styles";
+import { ScriptTransitioner } from "./scripts";
 import type {BundleManifest} from "../build/bundle";
+import {HistoryManager, type NavigationDirection} from "./history";
 
 let self: ClientController | null = null;
 export function getClientController(): ClientController {
@@ -29,7 +30,7 @@ export function getClientController(): ClientController {
 global.CLIENT_READY_DFD = Promise.withResolvers<void>();
 
 export interface NavigateOptions {
-  replace: boolean;
+  // TODO: reuseDom
 }
 
 export class ClientController {
@@ -39,14 +40,16 @@ export class ClientController {
   private reactRoots: Root[];
   private styleTransitioner: StyleTransitioner;
   private scriptTransitioner: ScriptTransitioner;
+  private historyManager: HistoryManager;
 
   constructor(site: VersoRoutes, pageLoaders: PageLoaders, manifest: BundleManifest | null) {
     this.site = site;
     this.router = createRouter(site.routes);
     this.pageLoaders = pageLoaders;
     this.reactRoots = [];
-    this.styleTransitioner = getStyleTransitioner(manifest);
-    this.scriptTransitioner = getScriptTransitioner();
+    this.styleTransitioner = new StyleTransitioner(manifest);
+    this.scriptTransitioner = new ScriptTransitioner();
+    this.historyManager = new HistoryManager((url, options) => this.navigate(url, 'POP', options));
     self = this;
     global.__versoController = this; // for playwright tests
   }
@@ -65,6 +68,7 @@ export class ClientController {
 
     await page.getRouteDirective(); // just for data fetching, for now
 
+    this.historyManager.stampHistoryFrame();
 
     const tokens = tokenizeElements(page.getElements());
 
@@ -98,10 +102,7 @@ export class ClientController {
     Promise.allSettled(Object.values(rootHydrationDfds).map(dfd => dfd.promise)).then(() => {
       console.log(`[verso-debug] all roots hydrated, resolving CLIENT_READY_DFD`);
       global.CLIENT_READY_DFD!.resolve();
-      // TODO: handle navigations that occur during hydration?
-      window.addEventListener('popstate', () => {
-        this.navigate(location.pathname + location.search, { replace: true });
-      });
+      this.historyManager.installListener();
     });
 
     let nextRootIndex = 0;
@@ -128,8 +129,7 @@ export class ClientController {
     readablePipe.onCallFn(FN_RECEIVE_LATE_DATA_ARRIVAL, Fetch.getCache().client().receiveCachedResponse);
   }
 
-  async navigate(url: string, options?: NavigateOptions): Promise<void> {
-    const { replace } = options ?? { replace: false };
+  async navigate(url: string, direction: NavigationDirection, options: NavigateOptions = {}): Promise<void> {
     startClientRequest();
     global.CLIENT_READY_DFD = Promise.withResolvers();
     // TODO: clear out VersoPipe script, for tidiness
@@ -139,10 +139,9 @@ export class ClientController {
 
     await page.getRouteDirective(); // TODO: redirects...?
 
-    // ok we're committing to the new location
-    if (!replace) {
-      history.pushState(null, '', url);
-      // TODO: do we need something like reactServerFrame to mark history frames as ours?
+    if (direction === 'PUSH') {
+      // we're committing to the new location now
+      this.historyManager.pushFrame(url, options);
     }
 
     // =header=

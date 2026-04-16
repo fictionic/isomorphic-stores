@@ -2,7 +2,7 @@
 // @vitest-environment-options { "url": "http://localhost" }
 import { test, expect, describe, beforeEach, afterEach } from 'vitest';
 import { PAGE_HEADER_STYLE_ELEMENT_ATTR } from '../core/constants';
-import { getStyleTransitioner, type StyleTransitioner } from '../client/styles';
+import { StyleTransitioner } from '../client/styles';
 
 const BASE = 'http://localhost';
 const ROUTE = 'TestRoute';
@@ -45,7 +45,7 @@ describe('StyleTransitioner', () => {
   beforeEach(() => {
     document.head.innerHTML = '';
     // Manifest with an empty route entry: all stylesheets go through pageStylesheets param.
-    st = getStyleTransitioner({ [ROUTE]: { scripts: [], stylesheets: [] } });
+    st = new StyleTransitioner({ [ROUTE]: { scripts: [], stylesheets: [] } });
     linkLoadObserver = new MutationObserver((mutations) => {
       for (const m of mutations) {
         m.addedNodes.forEach((node) => {
@@ -207,7 +207,7 @@ describe('StyleTransitioner', () => {
 
   describe('prod manifest stylesheets', () => {
     test('includes route stylesheets from the manifest', async () => {
-      st = getStyleTransitioner({
+      st = new StyleTransitioner({
         TestRoute: { scripts: [], stylesheets: ['/route.css'] },
       });
       st.readServerStyles();
@@ -219,7 +219,7 @@ describe('StyleTransitioner', () => {
     });
 
     test('deduplicates route and page stylesheets', async () => {
-      st = getStyleTransitioner({
+      st = new StyleTransitioner({
         TestRoute: { scripts: [], stylesheets: ['/shared.css'] },
       });
       st.readServerStyles();
@@ -229,7 +229,7 @@ describe('StyleTransitioner', () => {
     });
 
     test('deduplicates route stylesheets against server-rendered styles', async () => {
-      st = getStyleTransitioner({
+      st = new StyleTransitioner({
         TestRoute: { scripts: [], stylesheets: ['/server.css'] },
       });
       addServerLink('/server.css');
@@ -240,14 +240,14 @@ describe('StyleTransitioner', () => {
     });
 
     test('throws if manifest is null', async () => {
-      st = getStyleTransitioner(null);
+      st = new StyleTransitioner(null);
       st.readServerStyles();
 
       await expect(st.transitionStyles(ROUTE, [])).rejects.toThrow('no bundle manifest');
     });
 
     test('throws if route is missing from manifest', async () => {
-      st = getStyleTransitioner({});
+      st = new StyleTransitioner({});
       st.readServerStyles();
 
       await expect(st.transitionStyles(ROUTE, [])).rejects.toThrow('no bundles for route');
@@ -256,7 +256,7 @@ describe('StyleTransitioner', () => {
 
   describe('style ordering', () => {
     test('route stylesheets appear before page stylesheets', async () => {
-      st = getStyleTransitioner({
+      st = new StyleTransitioner({
         TestRoute: { scripts: [], stylesheets: ['/route.css'] },
       });
       st.readServerStyles();
