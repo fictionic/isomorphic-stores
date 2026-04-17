@@ -23,7 +23,7 @@ export function resetClientRequest(): void {
   clientStore = null;
 }
 
-export function getRLS<T extends object = Partial<Record<string, any>>>(): () => T {
+export function getRLS<T extends Record<string | symbol, any>>(): () => T {
   const moduleKey = Symbol();
   const RLS = () => {
     let store: ModuleNamespaces | null = null;
