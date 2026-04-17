@@ -269,11 +269,16 @@ export default function verso(options: VersoConfig): Plugin[] {
 
         let router: ReturnType<typeof createRouter>;
         let allMiddleware: any[];
+        let collectCss: typeof import('./collectCss').collectCss;
+        let handleRoute: typeof import('../server/handleRoute').handleRoute;
         let currentRouteStylesheets: Record<string, Stylesheet[]> = {};
         const setupPromise = (async () => {
           site = await ssrLoadDefault<VersoRoutes>(vite, routesPath);
           routes = site.routes;
           router = createRouter(routes);
+
+          ({ collectCss } = await vite.ssrLoadModule(path.resolve(DIST_ROOT, 'collectCss.js')) as typeof import('./collectCss'));
+          ({ handleRoute } = await vite.ssrLoadModule(HANDLE_ROUTE_PATH) as typeof import('../server/handleRoute'));
 
           const routeScripts: Record<string, string[]> = {};
           for (const routeName of Object.keys(routes)) {
@@ -317,9 +322,6 @@ export default function verso(options: VersoConfig): Plugin[] {
                 const handlerPath = resolveHandler(routesPath, routes[routeName].handler);
                 // Ensure the handler module graph is populated before walking it
                 await vite.ssrLoadModule(handlerPath);
-                const { collectCss } = await vite.ssrLoadModule(
-                  path.resolve(DIST_ROOT, 'collectCss.js'),
-                ) as typeof import('./collectCss');
                 const stylesheets = await collectCss(vite, handlerPath);
                 res.setHeader('Content-Type', 'application/json');
                 res.end(JSON.stringify({ stylesheets }));
@@ -341,14 +343,10 @@ export default function verso(options: VersoConfig): Plugin[] {
               );
 
               // Collect CSS from Vite's module graph for this handler
-              const { collectCss } = await vite.ssrLoadModule(
-                path.resolve(DIST_ROOT, 'collectCss.js'),
-              ) as typeof import('./collectCss');
               currentRouteStylesheets = {
                 [route.routeName]: await collectCss(vite, handlerPath),
               };
 
-              const { handleRoute } = await vite.ssrLoadModule(HANDLE_ROUTE_PATH) as typeof import('../server/handleRoute');
               const request = toWebRequest(req, url);
               const response = await handleRoute(
                 handler.type,
