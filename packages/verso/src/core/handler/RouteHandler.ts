@@ -7,11 +7,10 @@ export type RouteHandlerType = 'page' | 'endpoint';
 
 export type RouteDirective = {
   status: number;
-  redirectLocation?: string; // TODO implement these
+  location?: string;
   hasDocument?: boolean;
-} /* TODO | {
-  proxyRoute: string;
-}; */
+  // TODO: proxyRoute?: string;
+};
 
 export interface SharedRequiredMethods {
   getRouteDirective(): MaybePromise<RouteDirective>;

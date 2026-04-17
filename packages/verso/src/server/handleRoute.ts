@@ -1,4 +1,4 @@
-import type {RouteHandlerDefinition, RouteHandlerType} from "../core/handler/RouteHandler";
+import type {RouteDirective, RouteHandlerDefinition, RouteHandlerType} from "../core/handler/RouteHandler";
 import type {MiddlewareDefinition} from "../core/handler/Middleware";
 import {startRequest} from "../core/RequestLocalStorage";
 import {ServerCookies} from "./ServerCookies";
@@ -11,6 +11,8 @@ import {VersoRequest} from "../core/VersoRequest";
 import {createCtx} from "../core/handler/RouteHandlerCtx";
 import type {RouteMatch} from "../core/router";
 import {html500} from "./errorPages";
+
+const REDIRECT_STATUSES = [301, 302, 303, 307, 308];
 
 interface Options {
   urlPrefix?: string;
@@ -32,17 +34,7 @@ export async function handleRoute<T extends RouteHandlerType>(
     const config = new ResponderConfig();
     const ctx = createCtx(config, req, route);
     const handler = createHandlerChain(type, routeHandlerDef, globalMiddleware, config, ctx);
-    let statusCode: number;
-    try {
-      const directive = await handler.getRouteDirective();
-      statusCode = directive.status;
-    } catch (err) {
-      console.error('[verso] error during getRouteDirective', err);
-      return new Response(html500, {
-        status: 500,
-        headers: { 'Content-Type': 'text/html; charset=utf-8' },
-      });
-    }
+
     const headers = new Headers();
     function concatHeaders(newHeaders: Headers) {
       newHeaders.forEach((value, name) => {
@@ -50,12 +42,44 @@ export async function handleRoute<T extends RouteHandlerType>(
         headers.append(name, value);
       });
     }
+
+    let directive: RouteDirective;
+    try {
+      directive = await handler.getRouteDirective();
+    } catch (err) {
+      console.error('[verso] error during getRouteDirective', err);
+      return new Response(html500, {
+        status: 500,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      });
+    }
+
     const handlerHeaders = handler.getHeaders();
     const cookieHeaders = cookies.consumeHeaders();
     concatHeaders(handlerHeaders);
     concatHeaders(cookieHeaders);
+
+    const statusCode = directive.status;
+    const is2XX = ((statusCode / 100)|0) === 2;
+    if (!is2XX) {
+      if (REDIRECT_STATUSES.includes(statusCode)) {
+        const location: string = directive.location ?? '';
+        if (!location) {
+          console.warn("[verso] empty location header!");
+        }
+        headers.append('Location', location);
+      }
+      if (type === 'page' && !directive.hasDocument) {
+        // applications can stream a regular SSR page on a non-2XX if they so choose,
+        // but they have to opt into it with hasDocument. only applies to Pages
+        return new Response(null, {
+          status: statusCode,
+          headers,
+        });
+      }
+    }
+
     let streamable;
-    // TODO: respect hasDocument / location from RouteDirective
     switch(type) {
       case 'page':
         headers.append('Content-Type', 'text/html; charset=utf-8');
