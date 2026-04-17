@@ -18,7 +18,7 @@ export interface SharedRequiredMethods {
 };
 
 export interface SharedOptionalMethods {
-  getHeaders(): Headers[];
+  getHeaders(): Headers;
 };
 
 export interface SharedMethods extends SharedRequiredMethods, Partial<SharedOptionalMethods> {};
@@ -102,7 +102,7 @@ function makeStandardizer<OptionalMethods extends {}, RequiredMethods extends {}
 const SHARED_REQUIRED_METHOD_NAMES: (keyof SharedRequiredMethods)[] = ['getRouteDirective'];
 
 const SHARED_OPTIONAL_METHOD_DEFAULTS: SharedOptionalMethods = {
-  getHeaders: () => [],
+  getHeaders: () => new Headers(),
 };
 
 export type StandardizedRouteHandler<

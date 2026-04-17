@@ -42,15 +42,21 @@ export async function handleRoute<T extends RouteHandlerType>(
       });
     }
     const headers = new Headers();
-    headers.append('Content-Type', 'text/html; charset=utf-8');
-    cookies.consumeHeaders().forEach((value, name) => {
-      // idk why Headers has ^these args flipped...
-      headers.append(name, value);
-    });
+    function concatHeaders(newHeaders: Headers) {
+      newHeaders.forEach((value, name) => {
+        // idk why Headers has ^these args flipped...
+        headers.append(name, value);
+      });
+    }
+    const handlerHeaders = handler.getHeaders();
+    const cookieHeaders = cookies.consumeHeaders();
+    concatHeaders(handlerHeaders);
+    concatHeaders(cookieHeaders);
     let streamable;
     // TODO: respect hasDocument / location from RouteDirective
     switch(type) {
       case 'page':
+        headers.append('Content-Type', 'text/html; charset=utf-8');
         streamable = await handlePage(handler, options);
         break;
       case 'endpoint':

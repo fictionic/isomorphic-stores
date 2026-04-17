@@ -3,7 +3,7 @@ import {getMetaTagAttrs} from "../core/handler/Page";
 import type {StandardizedPage, Stylesheet, LinkTag, MetaTag, BaseTag} from "../core/handler/Page";
 
 export function writeHeader(page: StandardizedPage, write: (html: string) => void) {
-  write('<meta charset="utf-8" />');
+  write('<meta charset="utf-8" />'); // TODO is this needed given we set Content-Type in handleRoute?
   write(renderBaseTag(page.getBase()));
   write(renderMetaTags(page.getMetaTags()));
   write(renderTitle(page.getTitle()));
