@@ -147,7 +147,7 @@ export class ClientController {
     }
 
     // =header=
-    document.title = page.getTitle();
+    document.title = page.getTitle() ?? ''; // no way to unset title; technically sort of non-isomorphic
     // update base tag
     const base = page.getBase();
     let baseNode = document.head.querySelector('base');

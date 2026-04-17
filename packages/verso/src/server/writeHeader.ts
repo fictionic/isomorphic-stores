@@ -6,7 +6,7 @@ export function writeHeader(page: StandardizedPage, write: (html: string) => voi
   write('<meta charset="utf-8" />');
   write(renderBaseTag(page.getBase()));
   write(renderMetaTags(page.getMetaTags()));
-  write(`<title>${page.getTitle()}</title>`);
+  write(renderTitle(page.getTitle()));
   write(renderLinkTags(page.getSystemLinkTags()));
   write(renderLinkTags(page.getLinkTags()));
   write(renderStylesheets(page.getSystemStylesheets()));
@@ -27,6 +27,13 @@ function renderMetaTags(tags: MetaTag[]): string {
     const tag = `<meta${attrs}>`;
     return t.noscript ? `<noscript>${tag}</noscript>` : tag;
   }).join('\n');
+}
+
+function renderTitle(title: string | null): string {
+  if (typeof title === 'string') {
+    return `<title>${title}</title>`;
+  }
+  return '';
 }
 
 function renderLinkTags(tags: LinkTag[]): string {
