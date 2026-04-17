@@ -25,7 +25,7 @@ function simplePage(elements: React.ReactElement[]): StandardizedPage {
     getBase() { return null; },
     getSystemStylesheets() { return []; },
     getStylesheets() { return []; },
-    getHeaders() { return []; },
+    getHeaders() { return new Headers(); },
     getSystemScripts() { return []; },
     getScripts() { return []; },
     getSystemLinkTags() { return []; },

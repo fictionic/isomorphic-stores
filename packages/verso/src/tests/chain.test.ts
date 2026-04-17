@@ -53,7 +53,7 @@ describe('createHandlerChain', () => {
       expect(chain.getTitle()).toBe('');
       expect(chain.getElements()).toEqual(['el']);
       expect(chain.getRouteDirective()).toEqual({ status: 200 });
-      expect(chain.getHeaders()).toEqual([]);
+      expect(chain.getHeaders()).toEqual(new Headers());
     });
   });
 
@@ -459,7 +459,7 @@ describe('createHandlerChain', () => {
       expect(chain.getRouteDirective()).toEqual({ status: 404 });
       expect(chain.getElements()).toEqual(['not-found']);
       expect(chain.getTitle()).toBe('');
-      expect(chain.getHeaders()).toEqual([]);
+      expect(chain.getHeaders()).toEqual(new Headers());
     });
   });
 });
@@ -488,7 +488,7 @@ describe('makeStandardizer', () => {
     const result = def.standardize(makeHandler({}));
 
     expect(result.getHeaders).toBeDefined();
-    expect(result.getHeaders()).toEqual([]);
+    expect(result.getHeaders()).toEqual(new Headers());
   });
 
   test('handler-provided getHeaders overrides the shared default', () => {
