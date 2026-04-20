@@ -8,8 +8,8 @@ import { toWebRequest, sendWebResponse } from '../../server/nodeHttp';
 
 export async function runStart(outDir = 'dist') {
   // Read client manifest
-  const manifestPath = path.resolve(outDir, 'manifest.json');
-  const manifest: BundleManifest = JSON.parse(await readFile(manifestPath, 'utf-8'));
+  const manifestPath = path.resolve(outDir, BUNDLES_DIR, 'manifest.js');
+  const manifest: BundleManifest = (await import(manifestPath)).default;
 
   // Read client bundle files from disk
   const bundlesDir = path.resolve(outDir, BUNDLES_DIR);
@@ -24,7 +24,7 @@ export async function runStart(outDir = 'dist') {
 
   // Load pre-built server entry (self-contained: framework + handlers + site config)
   const serverEntryPath = pathToFileURL(path.resolve(outDir, 'server', 'entry.js')).href;
-  const { getServer, getSettings} = (await import(serverEntryPath));
+  const { getServer, getSettings} = await import(serverEntryPath);
   const versoServer = await getServer({
     manifest,
     bundleContents,

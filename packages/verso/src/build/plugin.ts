@@ -255,12 +255,8 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
 
         // Write manifest to disk
         const manifestJson = JSON.stringify(manifest, null, 2);
-
-        await Promise.all([
-          writeFile(path.join(pluginContext!.resolvedOutDir, 'manifest.json'), manifestJson),
-          writeFile(path.join(pluginContext!.resolvedOutDir, `${BUNDLES_DIR}/manifest.js`), `export default ${manifestJson}`),
-          // TODO: can these be deduped?
-        ]);
+        const manifestPath = path.join(pluginContext!.resolvedOutDir, BUNDLES_DIR, 'manifest.js');
+        await writeFile(manifestPath, `export default ${manifestJson}`);
       },
     },
 
