@@ -4,14 +4,11 @@ import type {Script, StandardizedPage} from "../core/handler/Page";
 import {writeBody} from "./writeBody";
 import {writeHeader} from "./writeHeader";
 import {PAGE_HEADER_SCRIPT_ELEMENT_ATTR} from "../core/constants";
+import type {ServerSettings} from "../build/config";
 
 const encoder = new TextEncoder();
 
-interface StreamOpts {
-  renderTimeout: number;
-}
-
-export function makeStreamer(page: StandardizedPage, { renderTimeout }: StreamOpts) {
+export function makeStreamer(page: StandardizedPage, { renderTimeout }: ServerSettings) {
 
   const { readable, writable } = new TransformStream<Uint8Array>();
 
