@@ -1,6 +1,6 @@
 import {makeStreamer} from './stream';
-import type {StandardizedPage} from '../core/handler/Page';
-import type {ServerSettings} from '../build/config';
+import type {StandardizedPage} from '../common/handler/Page';
+import type {ServerSettings} from '../../build/config';
 
 export async function handlePage(
   page: StandardizedPage,

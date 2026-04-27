@@ -1,4 +1,4 @@
-import type {ServerSettings} from '../../build/config';
+import type {ServerSettings} from '../../../build/config';
 import {ServerCookies} from '../../server/ServerCookies';
 import { getRLS } from '../RequestLocalStorage';
 import { FetchCache, reifyCachedResponse, type CacheableRequest } from './cache';

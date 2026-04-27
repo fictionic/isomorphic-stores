@@ -1,6 +1,6 @@
-import {PAGE_HEADER_LINK_ELEMENT_ATTR, PAGE_HEADER_STYLE_ELEMENT_ATTR} from "../core/constants";
-import {getMetaTagAttrs} from "../core/handler/Page";
-import type {StandardizedPage, Stylesheet, LinkTag, MetaTag, BaseTag} from "../core/handler/Page";
+import {PAGE_HEADER_LINK_ELEMENT_ATTR, PAGE_HEADER_STYLE_ELEMENT_ATTR} from "../common/constants";
+import {getMetaTagAttrs} from "../common/handler/Page";
+import type {StandardizedPage, Stylesheet, LinkTag, MetaTag, BaseTag} from "../common/handler/Page";
 
 export function writeHeader(page: StandardizedPage, write: (html: string) => void) {
   write('<meta charset="utf-8" />'); // TODO is this needed given we set Content-Type in handleRoute?

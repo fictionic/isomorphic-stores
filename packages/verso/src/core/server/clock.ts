@@ -1,4 +1,4 @@
-import { getRLS } from '../core/RequestLocalStorage';
+import { getRLS } from '../common/RequestLocalStorage';
 
 const RLS = getRLS<{ requestStart: number }>();
 

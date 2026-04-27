@@ -1,12 +1,12 @@
 import type {BundleResult} from "../build/bundle";
-import type {Stylesheet} from "../core/handler/Page";
-import type {MiddlewareDefinition} from "../core/handler/Middleware";
-import {createRouter} from "../core/router";
-import {handleRoute} from "../server/handleRoute";
-import {html404, html500} from "../server/errorPages";
+import type {Stylesheet} from "../core/common/handler/Page";
+import type {MiddlewareDefinition} from "../core/common/handler/Middleware";
+import {createRouter} from "../core/common/router";
+import {handleRoute} from "../core/server/handleRoute";
+import {html404, html500} from "../core/server/errorPages";
 import {createViteBundleLoader} from "./ViteBundleLoader";
 import type {RoutesMap, ServerSettings} from './config';
-import type {RouteHandlerDefinition} from "../core/handler/RouteHandler";
+import type {RouteHandlerDefinition} from "../core/common/handler/RouteHandler";
 
 interface VersoServer {
   serve: (req: Request) => Promise<Response>;

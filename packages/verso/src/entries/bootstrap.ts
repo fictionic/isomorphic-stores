@@ -1,1 +1,1 @@
-export { bootstrap, type PageLoaders } from '../client/bootstrap';
+export { bootstrap, type PageLoaders } from '../core/client/bootstrap';

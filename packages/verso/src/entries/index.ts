@@ -1,23 +1,23 @@
 // Handler definition APIs
-export { definePage, type Page, type PageInit, type PageDefinition, type Stylesheet, type LinkTag } from '../core/handler/Page';
-export { defineMiddleware, type Middleware, type MiddlewareDefinition, type Scope } from '../core/handler/Middleware';
-export { defineEndpoint, type Endpoint, type EndpointInit, type EndpointDefinition, type EndpointResponseData } from '../core/handler/Endpoint';
-export type { RouteHandlerCtx } from '../core/handler/RouteHandlerCtx';
-export type { RouteDirective } from '../core/handler/RouteHandler';
+export { definePage, type Page, type PageInit, type PageDefinition, type Stylesheet, type LinkTag } from '../core/common/handler/Page';
+export { defineMiddleware, type Middleware, type MiddlewareDefinition, type Scope } from '../core/common/handler/Middleware';
+export { defineEndpoint, type Endpoint, type EndpointInit, type EndpointDefinition, type EndpointResponseData } from '../core/common/handler/Endpoint';
+export type { RouteHandlerCtx } from '../core/common/handler/RouteHandlerCtx';
+export type { RouteDirective } from '../core/common/handler/RouteHandler';
 
 // Environment
-export { isServer } from '../core/env';
+export { isServer } from '../core/common/env';
 
 // Utilities
-export { fetch, setFetchInterceptor, type FetchRequestInterceptor, type FetchRequestSettings, type InterceptResult, type VersoFetchInit } from '../core/fetch';
-export { getCookie, setCookie } from '../core/cookies';
-export { getRLS } from '../core/RequestLocalStorage';
-export { navigateTo } from '../client/navigateTo';
+export { fetch, setFetchInterceptor, type FetchRequestInterceptor, type FetchRequestSettings, type InterceptResult, type VersoFetchInit } from '../core/common/fetch';
+export { getCookie, setCookie } from '../core/common/cookies';
+export { getRLS } from '../core/common/RequestLocalStorage';
+export { navigateTo } from '../core/client/navigateTo';
 
 // Components
-export { Root, makeRootComponent, type RootAPI, type RootComponent, type RootElementType } from '../core/components/Root';
-export { default as RootContainer } from '../core/components/RootContainer';
-export { default as TheFold } from '../core/components/TheFold';
+export { Root, makeRootComponent, type RootAPI, type RootComponent, type RootElementType } from '../core/common/components/Root';
+export { default as RootContainer } from '../core/common/components/RootContainer';
+export { default as TheFold } from '../core/common/components/TheFold';
 
 // Configuration
 export { defineConfig, type VersoConfig } from '../build/config';

@@ -1,11 +1,11 @@
 import React from 'react';
 import { test, expect, describe } from 'vitest';
-import { handleRoute } from '../server/handleRoute';
-import { Root, makeRootComponent } from '../core/components/Root';
-import RootContainer from '../core/components/RootContainer';
-import TheFold from '../core/components/TheFold';
-import { definePage, type PageInit, type Script, type Stylesheet } from '../core/handler/Page';
-import type {RouteMatch} from '../core/router';
+import { handleRoute } from '../core/server/handleRoute';
+import { Root, makeRootComponent } from '../core/common/components/Root';
+import RootContainer from '../core/common/components/RootContainer';
+import TheFold from '../core/common/components/TheFold';
+import { definePage, type PageInit, type Script, type Stylesheet } from '../core/common/handler/Page';
+import type {RouteMatch} from '../core/common/router';
 import {fillServerSettings} from '../build/config';
 
 // --- Helpers ---

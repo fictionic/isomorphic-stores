@@ -4,20 +4,20 @@ import { writeFile } from 'node:fs/promises';
 import react from '@vitejs/plugin-react';
 import type { BuildEnvironmentOptions, ConfigEnv, Plugin, ViteDevServer } from 'vite';
 import { fillServerSettings, type VersoConfig } from './config';
-import type { RouteHandler } from '../core/handler/RouteHandler';
-import type { Script, Stylesheet } from '../core/handler/Page';
+import type { RouteHandler } from '../core/common/handler/RouteHandler';
+import type { Script, Stylesheet } from '../core/common/handler/Page';
 import type { BundleManifest } from './bundle';
 import { BUNDLES_DIR } from './bundle';
-import { DEV_ROUTE_CSS_PATH } from '../core/constants';
-import { createRouter } from '../core/router';
+import { DEV_ROUTE_CSS_PATH } from '../core/common/constants';
+import { createRouter } from '../core/common/router';
 import { createViteBundleLoader } from './ViteBundleLoader';
 import { toURL, toWebRequest, sendWebResponse } from './nodeHttp';
 import { getEntrypointGenerator, type EntrypointGenerator } from './entrypoint';
 import { createJiti, type Jiti } from 'jiti';
-import { html404, html500 } from '../server/errorPages';
+import { html404, html500 } from '../core/server/errorPages';
 import type {CollectCss} from './collectCss';
-import type {HandleRoute} from '../server/handleRoute';
-import type { MiddlewareDefinition } from '../core/handler/Middleware';
+import type {HandleRoute} from '../core/server/handleRoute';
+import type { MiddlewareDefinition } from '../core/common/handler/Middleware';
 
 const VERSO_CONFIG_FILE_NAME = 'verso.config.ts';
 

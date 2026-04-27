@@ -1,5 +1,5 @@
 import { parseCookie, parseSetCookie, stringifyCookie, stringifySetCookie, type Cookies, type SetCookie } from 'cookie';
-import { getRLS } from '../core/RequestLocalStorage';
+import { getRLS } from '../common/RequestLocalStorage';
 
 export type CookieOptions = Omit<SetCookie, 'name' | 'value'>;
 

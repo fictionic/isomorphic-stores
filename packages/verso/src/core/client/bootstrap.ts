@@ -1,7 +1,7 @@
-import type {BundleManifest} from '../build/bundle';
-import type {RoutesMap} from '../build/config';
-import type {PageDefinition} from '../core/handler/Page';
-import type {MiddlewareDefinition} from '../core/handler/Middleware';
+import type {BundleManifest} from '../../build/bundle';
+import type {RoutesMap} from '../../build/config';
+import type {PageDefinition} from '../common/handler/Page';
+import type {MiddlewareDefinition} from '../common/handler/Middleware';
 import {ClientController} from './controller';
 
 export type PageLoaders = Record<string, () => Promise<{ default: PageDefinition }>>;

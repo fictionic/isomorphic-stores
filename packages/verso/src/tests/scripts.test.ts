@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 // @vitest-environment-options { "url": "http://localhost" }
 import { test, expect, describe, beforeEach } from 'vitest';
-import { PAGE_HEADER_SCRIPT_ELEMENT_ATTR } from '../core/constants';
-import { ScriptTransitioner } from '../client/scripts';
+import { PAGE_HEADER_SCRIPT_ELEMENT_ATTR } from '../core/common/constants';
+import { ScriptTransitioner } from '../core/client/scripts';
 
 const BASE = 'http://localhost';
 const extScript = (src: string, type?: string) => ({ src, ...(type ? { type } : {}) });

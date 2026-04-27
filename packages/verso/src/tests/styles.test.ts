@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 // @vitest-environment-options { "url": "http://localhost" }
 import { test, expect, describe, beforeEach, afterEach } from 'vitest';
-import { PAGE_HEADER_STYLE_ELEMENT_ATTR } from '../core/constants';
-import { StyleTransitioner } from '../client/styles';
+import { PAGE_HEADER_STYLE_ELEMENT_ATTR } from '../core/common/constants';
+import { StyleTransitioner } from '../core/client/styles';
 
 const BASE = 'http://localhost';
 const ROUTE = 'TestRoute';

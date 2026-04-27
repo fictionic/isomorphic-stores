@@ -1,7 +1,7 @@
-import {DEV_ROUTE_CSS_PATH, DEV_VITE_STYLE_ID_ATTR, PAGE_HEADER_STYLE_ELEMENT_ATTR} from "../core/constants";
-import {getStyleAttrs, setNodeAttrs, type Stylesheet} from "../core/handler/Page";
+import {DEV_ROUTE_CSS_PATH, DEV_VITE_STYLE_ID_ATTR, PAGE_HEADER_STYLE_ELEMENT_ATTR} from "../common/constants";
+import {getStyleAttrs, setNodeAttrs, type Stylesheet} from "../common/handler/Page";
 import {normalizeUrl} from "./url";
-import type {BundleManifest} from "../build/bundle";
+import type {BundleManifest} from "../../build/bundle";
 
 type StyleElement = HTMLLinkElement | HTMLStyleElement;
 

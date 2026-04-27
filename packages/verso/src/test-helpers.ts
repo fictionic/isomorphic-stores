@@ -1,5 +1,5 @@
-import { startClientRequest, resetClientRequest } from './core/RequestLocalStorage';
-import type { MaybePromise } from './core/util/types';
+import { startClientRequest, resetClientRequest } from './core/common/RequestLocalStorage';
+import type { MaybePromise } from './core/common/util/types';
 
 export function setupRLS(): void {
   startClientRequest();

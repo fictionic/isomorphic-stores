@@ -1,17 +1,17 @@
-import type {RouteDirective, RouteHandlerDefinition, RouteHandlerType} from "../core/handler/RouteHandler";
-import type {MiddlewareDefinition} from "../core/handler/Middleware";
-import {startRequest} from "../core/RequestLocalStorage";
+import type {RouteDirective, RouteHandlerDefinition, RouteHandlerType} from "../common/handler/RouteHandler";
+import type {MiddlewareDefinition} from "../common/handler/Middleware";
+import {startRequest} from "../common/RequestLocalStorage";
 import {ServerCookies} from "./ServerCookies";
-import {Fetch} from "../core/fetch/Fetch";
-import {ResponderConfig} from "../core/handler/ResponderConfig";
-import {createHandlerChain} from "../core/handler/chain";
+import {Fetch} from "../common/fetch/Fetch";
+import {ResponderConfig} from "../common/handler/ResponderConfig";
+import {createHandlerChain} from "../common/handler/chain";
 import {handlePage} from "./handlePage";
 import {handleEndpoint} from "./handleEndpoint";
-import {VersoRequest} from "../core/VersoRequest";
-import {createCtx} from "../core/handler/RouteHandlerCtx";
-import type {RouteMatch} from "../core/router";
+import {VersoRequest} from "../common/VersoRequest";
+import {createCtx} from "../common/handler/RouteHandlerCtx";
+import type {RouteMatch} from "../common/router";
 import {html500} from "./errorPages";
-import type {ServerSettings} from "../build/config";
+import type {ServerSettings} from "../../build/config";
 import {startRequestClock} from "./clock";
 
 const REDIRECT_STATUSES = [301, 302, 303, 307, 308];

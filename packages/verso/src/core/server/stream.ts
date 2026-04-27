@@ -1,10 +1,10 @@
-import {Fetch} from "../core/fetch/Fetch";
-import {FETCH_CACHE_KEY, FN_ABORT_HYDRATION, FN_HYDRATE_ROOTS_UP_TO, FN_RECEIVE_LATE_DATA_ARRIVAL, VersoPipe} from "../core/VersoPipe";
-import type {Script, StandardizedPage} from "../core/handler/Page";
+import {Fetch} from "../common/fetch/Fetch";
+import {FETCH_CACHE_KEY, FN_ABORT_HYDRATION, FN_HYDRATE_ROOTS_UP_TO, FN_RECEIVE_LATE_DATA_ARRIVAL, VersoPipe} from "../common/VersoPipe";
+import type {Script, StandardizedPage} from "../common/handler/Page";
 import {writeBody} from "./writeBody";
 import {writeHeader} from "./writeHeader";
-import {PAGE_HEADER_SCRIPT_ELEMENT_ATTR} from "../core/constants";
-import type {ServerSettings} from "../build/config";
+import {PAGE_HEADER_SCRIPT_ELEMENT_ATTR} from "../common/constants";
+import type {ServerSettings} from "../../build/config";
 import {getElapsedRequestTime} from "./clock";
 
 const encoder = new TextEncoder();

@@ -1,5 +1,5 @@
-import {PAGE_HEADER_SCRIPT_ELEMENT_ATTR} from "../core/constants";
-import {getScriptAttrs, setNodeAttrs, type Script} from "../core/handler/Page";
+import {PAGE_HEADER_SCRIPT_ELEMENT_ATTR} from "../common/constants";
+import {getScriptAttrs, setNodeAttrs, type Script} from "../common/handler/Page";
 import {normalizeUrl} from "./url";
 
 export class ScriptTransitioner {

@@ -1,5 +1,5 @@
 import type { ViteDevServer, ModuleNode } from 'vite';
-import type { Stylesheet } from '../core/handler/Page';
+import type { Stylesheet } from '../core/common/handler/Page';
 
 /**
  * Walk the module graph for a handler and return its transitive CSS as `<link>`-style

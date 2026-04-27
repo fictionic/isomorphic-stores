@@ -1,15 +1,16 @@
 import { test, expect, describe, beforeEach, vi } from 'vitest';
-import { startRequest } from '../core/RequestLocalStorage';
+import { startRequest } from '../core/common/RequestLocalStorage';
 
 const nativeFetchMock = vi.hoisted(() => vi.fn());
-vi.mock('../core/fetch/nativeFetch', () => ({
+vi.mock('../core/common/fetch/nativeFetch', () => ({
   nativeFetch: nativeFetchMock,
 }));
 
-import { Fetch, setFetchInterceptor } from '../core/fetch/Fetch';
+import { Fetch, setFetchInterceptor } from '../core/common/fetch/Fetch';
 const { serverInit: init, fetch, getCache } = Fetch;
-import { FetchCache, type CacheableRequest, type CachedResponse } from '../core/fetch/cache';
-import { ServerCookies } from '../server/ServerCookies';
+import { FetchCache, type CacheableRequest, type CachedResponse } from '../core/common/fetch/cache';
+import { ServerCookies } from '../core/server/ServerCookies';
+import { fillServerSettings } from '../build/config';
 
 // --- Helpers ---
 
@@ -21,11 +22,7 @@ function inRequest<T>(fn: () => T, opts?: { cookies?: string; fetchOrigin?: 'req
     if (opts?.cookies) headers['cookie'] = opts.cookies;
     const nativeRequest = new Request(`${URL_PREFIX}/test`, { headers });
     new ServerCookies(nativeRequest);
-    init(nativeRequest, {
-      port: opts?.port ?? 80,
-      fetchOrigin: opts?.fetchOrigin ?? 'request',
-      renderTimeout: 20_000,
-    });
+    init(nativeRequest, fillServerSettings({ port: opts?.port, fetchOrigin: opts?.fetchOrigin }));
     return fn();
   });
 }

@@ -1,12 +1,12 @@
 import React from 'react';
 import { test, expect, describe, vi } from 'vitest';
-import { Root, makeRootComponent } from '../core/components/Root';
-import RootContainer from '../core/components/RootContainer';
-import TheFold from '../core/components/TheFold';
-import type { StandardizedPage } from '../core/handler/Page';
+import { Root, makeRootComponent } from '../core/common/components/Root';
+import RootContainer from '../core/common/components/RootContainer';
+import TheFold from '../core/common/components/TheFold';
+import type { StandardizedPage } from '../core/common/handler/Page';
 
-vi.mock('../core/components/RootContainer', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../core/components/RootContainer')>();
+vi.mock('../core/common/components/RootContainer', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../core/common/components/RootContainer')>();
   return {
     ...original,
     renderContainerOpen: vi.fn((_element, index) => `<div data-container="${index}">`),
@@ -15,7 +15,7 @@ vi.mock('../core/components/RootContainer', async (importOriginal) => {
 });
 
 // import handleBody after mocks are set up
-const { writeBody } = await import('../server/writeBody');
+const { writeBody } = await import('../core/server/writeBody');
 
 function simplePage(elements: React.ReactElement[]): StandardizedPage {
   // TODO build this out of the defined defaults

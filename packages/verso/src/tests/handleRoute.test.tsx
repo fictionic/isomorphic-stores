@@ -1,11 +1,11 @@
 import React from 'react';
 import { test, expect, describe, vi } from 'vitest';
-import { handleRoute } from '../server/handleRoute';
-import { Root } from '../core/components/Root';
-import { definePage, type PageInit } from '../core/handler/Page';
-import { defineEndpoint, type EndpointInit } from '../core/handler/Endpoint';
-import { setCookie } from '../core/cookies';
-import type {RouteMatch} from '../core/router';
+import { handleRoute } from '../core/server/handleRoute';
+import { Root } from '../core/common/components/Root';
+import { definePage, type PageInit } from '../core/common/handler/Page';
+import { defineEndpoint, type EndpointInit } from '../core/common/handler/Endpoint';
+import { setCookie } from '../core/common/cookies';
+import type {RouteMatch} from '../core/common/router';
 import {fillServerSettings} from '../build/config';
 
 // --- Helpers ---
