@@ -7,6 +7,7 @@ export const FETCH_CACHE_KEY = 'fetchCache' as const;
 
 export const FN_HYDRATE_ROOTS_UP_TO = 'hydrateRootsUpTo' as const;
 export const FN_RECEIVE_LATE_DATA_ARRIVAL = 'receiveLateDataArrival' as const;
+export const FN_ABORT_HYDRATION = 'abortHydration' as const;
 
 export interface VersoPipeSchema extends PipeSchema {
   data: {
@@ -15,6 +16,7 @@ export interface VersoPipeSchema extends PipeSchema {
   fns: {
     [FN_HYDRATE_ROOTS_UP_TO]: [number];
     [FN_RECEIVE_LATE_DATA_ARRIVAL]: [CacheableRequest, CachedResponse];
+    [FN_ABORT_HYDRATION]: [];
   };
 }
 

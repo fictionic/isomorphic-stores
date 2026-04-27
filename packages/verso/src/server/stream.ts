@@ -1,13 +1,15 @@
 import {Fetch} from "../core/fetch/Fetch";
-import {FETCH_CACHE_KEY, FN_HYDRATE_ROOTS_UP_TO, FN_RECEIVE_LATE_DATA_ARRIVAL, VersoPipe} from "../core/VersoPipe";
+import {FETCH_CACHE_KEY, FN_ABORT_HYDRATION, FN_HYDRATE_ROOTS_UP_TO, FN_RECEIVE_LATE_DATA_ARRIVAL, VersoPipe} from "../core/VersoPipe";
 import type {Script, StandardizedPage} from "../core/handler/Page";
 import {writeBody} from "./writeBody";
 import {writeHeader} from "./writeHeader";
 import {PAGE_HEADER_SCRIPT_ELEMENT_ATTR} from "../core/constants";
 import type {ServerSettings} from "../build/config";
+import {getElapsedRequestTime} from "./clock";
 
 const encoder = new TextEncoder();
 
+// TODO: move this into renderPage
 export function makeStreamer(page: StandardizedPage, { renderTimeout }: ServerSettings) {
 
   const { readable, writable } = new TransformStream<Uint8Array>();
@@ -58,15 +60,29 @@ export function makeStreamer(page: StandardizedPage, { renderTimeout }: ServerSe
       haveBootstrapped = true;
     };
 
-    const abort = AbortSignal.timeout(renderTimeout);
-    await writeBody(page, write, onRoot, onTheFold, abort);
+    const elapsedTime = getElapsedRequestTime();
+    const remainingTime = Math.max(0, renderTimeout - elapsedTime);
+
+    const abortController = new AbortController();
+
+    const abortTimeout = setTimeout(() => {
+      abortController.abort();
+      if (haveBootstrapped) {
+        writeablePipe.callFn(FN_ABORT_HYDRATION, []);
+      }
+    }, remainingTime);
+
+    const abortSignal = abortController.signal;
+
+    await writeBody(page, write, onRoot, onTheFold, abortSignal);
 
     if (!haveBootstrapped) {
       // if TheFold wasn't declared, then it's after the last root
       onTheFold(lastRootIndex + 1);
     }
 
-    finish();
+    await finish(abortSignal);
+    clearTimeout(abortTimeout);
   };
 
   function hydrateRootsUpTo(index: number) {
@@ -83,21 +99,22 @@ export function makeStreamer(page: StandardizedPage, { renderTimeout }: ServerSe
     flush();
   }
 
-  function setupLateArrivals(): Promise<void> {
+  async function setupLateArrivals(): Promise<void> {
     const pending = Fetch.getCache().server().getPending();
     if (pending.length === 0) return Promise.resolve();
-
-    return Promise.allSettled(
-      pending.map(({ request, promise }) => {
-        return promise.then((response) => {
-          writeablePipe.callFn(FN_RECEIVE_LATE_DATA_ARRIVAL, [request, response]);
-          flush();
-        })
-      })).then(() => {});
+    await Promise.allSettled(
+      pending.map(async ({ request, promise }) => {
+        const response = await promise;
+        writeablePipe.callFn(FN_RECEIVE_LATE_DATA_ARRIVAL, [request, response]);
+        flush();
+      }));
   }
 
-  async function finish() {
-    await lateArrivalsDfd.promise;
+  async function finish(abortSignal: AbortSignal) {
+    await Promise.race([
+      lateArrivalsDfd.promise,
+      new Promise((resolve) => abortSignal.addEventListener('abort', resolve)),
+    ]);
     write('</body></html>');
     flush();
     writer.close();

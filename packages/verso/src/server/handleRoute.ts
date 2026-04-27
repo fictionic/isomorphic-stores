@@ -12,6 +12,7 @@ import {createCtx} from "../core/handler/RouteHandlerCtx";
 import type {RouteMatch} from "../core/router";
 import {html500} from "./errorPages";
 import type {ServerSettings} from "../build/config";
+import {startRequestClock} from "./clock";
 
 const REDIRECT_STATUSES = [301, 302, 303, 307, 308];
 
@@ -24,6 +25,7 @@ export async function handleRoute<T extends RouteHandlerType>(
   settings: ServerSettings,
 ) {
   const response = await startRequest(async () => {
+    startRequestClock();
     const req = VersoRequest.serverInit(nativeRequest, route.params);
     const cookies = new ServerCookies(nativeRequest);
     Fetch.serverInit(nativeRequest, settings);

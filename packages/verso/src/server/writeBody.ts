@@ -23,7 +23,7 @@ export async function writeBody(
   write: (html: string) => void,
   onRoot: (index: number) => void,
   onTheFold: (index: number) => void,
-  abort: AbortSignal,
+  abortSignal: AbortSignal,
 ) {
   const elements = page.getElements();
   const tokens = tokenizeElements(elements);
@@ -122,16 +122,19 @@ export async function writeBody(
     }
   };
 
-  abort.addEventListener('abort', () => {
+  const abortDfd = Promise.withResolvers<void>();
+
+  abortSignal.addEventListener('abort', () => {
     // if we take too long, we mark all pending roots as failed,
     // write them out, and return control to the caller
     queue.abort();
     writeRenderedTokens();
+    abortDfd.resolve();
   });
 
   await Promise.race([
     Promise.all(rootPromises),
-    new Promise<void>(resolve => abort.addEventListener('abort', () => resolve())),
+    abortDfd.promise,
   ]);
 }
 

@@ -11,7 +11,7 @@ import {TOKEN, tokenizeElements} from "../core/elementTokenizer";
 import {scheduleRender} from "../core/components/Root";
 import { global } from './global';
 import {PAGE_ELEMENT_TOKEN_ID_ATTR, PAGE_HEADER_LINK_ELEMENT_ATTR, PAGE_ROOT_ELEMENT_ATTR} from "../core/constants";
-import {FETCH_CACHE_KEY, FN_HYDRATE_ROOTS_UP_TO, FN_RECEIVE_LATE_DATA_ARRIVAL, VersoPipe} from "../core/VersoPipe";
+import {FETCH_CACHE_KEY, FN_ABORT_HYDRATION, FN_HYDRATE_ROOTS_UP_TO, FN_RECEIVE_LATE_DATA_ARRIVAL, VersoPipe} from "../core/VersoPipe";
 import {Fetch} from "../core/fetch/Fetch";
 import {startClientRequest} from "../core/RequestLocalStorage";
 import {applyContainerProps} from "../core/components/RootContainer";
@@ -78,15 +78,15 @@ export class ClientController {
     }
 
     await page.getRouteDirective(); // just for data fetching, for now
+    // TODO: client-side redirects?????
 
     this.historyManager.stampHistoryFrame();
 
     const tokens = tokenizeElements(page.getElements());
 
-    // so consumers can know when the page is ready. not used for bootstrap.
-    const rootHydrationDfds: Record<number, PromiseWithResolvers<void>> = {};
+    const rootHydrationDfds: Array<PromiseWithResolvers<void>> = [];
+    const rootDomNodeDfds: Array<PromiseWithResolvers<Element>> = [];
 
-    const rootDomNodeDfds: Record<number, PromiseWithResolvers<Element>> = {};
     tokens.forEach((token, i) => {
       if (token.type === TOKEN.ROOT) {
         const hydrationDfd = Promise.withResolvers<void>();
@@ -136,8 +136,18 @@ export class ClientController {
       nextRootIndex = index + 1;
     };
 
+    function abortHydration() {
+      console.error("[verso] server render timed out; aborting hydration!");
+      for (let i = nextRootIndex; i < rootDomNodeDfds.length; i++) {
+        // note that these are sparse arrays
+        rootDomNodeDfds[i]?.reject();
+        rootHydrationDfds[i]?.resolve();
+      }
+    }
+
     readablePipe.onCallFn(FN_HYDRATE_ROOTS_UP_TO, hydrateRootsUpTo);
     readablePipe.onCallFn(FN_RECEIVE_LATE_DATA_ARRIVAL, Fetch.getCache().client().receiveCachedResponse);
+    readablePipe.onCallFn(FN_ABORT_HYDRATION, abortHydration);
   }
 
   async navigate(url: string, direction: NavigationDirection, options: NavigateOptions = {}): Promise<void> {
